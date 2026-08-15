@@ -1,0 +1,18 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      # The physics gate runs on EVERY commit, CPU only. A regression in plume
+      # statistics is otherwise invisible until a training run mysteriously
+      # gets easier -- which is far too late to notice.
+      - run: pytest -v -m "not isaac and not slow"
+      - name: plume realism gate
+        run: pytest -v -m slow tests/test_plume_gate.py
