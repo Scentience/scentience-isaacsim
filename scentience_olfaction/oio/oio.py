@@ -3,7 +3,7 @@ Olfactory Inertial Odometry (OIO) -- reference implementation.
 
 Implements the concept line developed in:
 
-  * France, Kondaveeti, Daescu, "Olfactory Inertial Odometry: Methods for
+  * France, Daescu, "Olfactory Inertial Odometry: Methods for
     Calibration and Drift Compensation" (arXiv:2506.04539, IEEE INERTIAL 2025)
     -- sensor calibration/differencing and the use of olfactory signals as an
     exteroceptive reference for inertial drift.
