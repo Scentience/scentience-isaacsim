@@ -1,0 +1,1 @@
+# Changelog\n\n## [0.1.0] - 2026-08-15\n\n### Added\n- Extension scaffold (lifecycle only). The supported v0.1 integration is Isaac Lab (`scentience_isaaclab/`). See repo-root docs/ISAAC_COMPATIBILITY.md.\n

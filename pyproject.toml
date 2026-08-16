@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scentience-olfaction"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Chemical plume transport and olfactory sensor models for NVIDIA Isaac Sim and Isaac Lab"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,7 +24,10 @@ dependencies = ["numpy>=1.24"]
 [project.optional-dependencies]
 gpu = ["warp-lang>=1.5"]
 torch = ["torch>=2.0"]
-dev = ["pytest>=7", "pytest-cov", "ruff", "warp-lang>=1.5", "torch>=2.0", "scipy"]
+envs = ["gymnasium>=0.29"]
+bridge = ["scentience>=2.2"]
+yaml = ["pyyaml"]
+dev = ["pytest>=7", "pytest-cov", "ruff", "warp-lang>=1.5", "torch>=2.0", "scipy", "gymnasium>=0.29"]
 
 [tool.setuptools.packages.find]
 include = ["scentience_olfaction*", "scentience_isaaclab*"]

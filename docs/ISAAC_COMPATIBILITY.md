@@ -36,3 +36,11 @@ script passes and its output is pasted into this document with a date.
 - Plume realism gate and the meander ablation (`tests/test_plume_gate.py`)
 - Deterministic replay under seed
 - Multi-environment stepping and partial reset
+
+## v0.1 GPU-path scope
+
+`transport/filament_warp.py` implements the fast common subset: single
+species, point sources, no occupancy, no decay. The NumPy reference
+(`plume/filament.py`) has all features and is the specification. GPU
+multi-species + occupancy are roadmap v0.2. The parity test covers the
+common subset only, deliberately.

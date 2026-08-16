@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it."
+title: "scentience-olfaction: olfactory sensing and chemical plume simulation for Isaac Sim"
+authors:
+  - family-names: France
+    given-names: Kordel K.
+  - name: "Scentience, Inc."
+version: 0.1.0
+date-released: 2026-08-15
+license: Apache-2.0
+repository-code: "https://github.com/scentience/scentience-isaac-olfaction"

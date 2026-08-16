@@ -1,76 +1,81 @@
 # scentience-olfaction
 
-Chemical plume transport and olfactory sensor models for **NVIDIA Isaac Sim /
-Isaac Lab**. To our knowledge this is the first olfactory and chemical sensing
-package for Isaac Sim — Isaac's sensor set covers camera, lidar, radar, IMU,
-contact, effort, and raycast, and nothing chemical.
+**Olfactory sensing for robotics simulation.** Chemical plume transport and
+virtual Scentience olfactory sensors for NVIDIA Isaac Sim / Isaac Lab,
+Gymnasium, and standalone Python. To our knowledge, the first olfactory and
+chemical sensing package for Isaac Sim.
 
-**Status: v0.1.0.dev0.** The physics core is validated. The Isaac Lab
-integration is written against the API but **has not yet run inside Isaac Sim**
-— see `docs/ISAAC_COMPATIBILITY.md`. Do not cite it as working until
-`scripts/validate_install.py` passes.
+By [Scentience](https://scentience.ai) -- sensors and AI for machine
+olfaction.
 
-## What it does
+## Five lines to smell
 
-- **Filament plume transport** (Farrell et al. 2002), NumPy reference + Warp
-  GPU path, batched over parallel environments.
-- **Turbulence at two scales** — per-filament Ornstein-Uhlenbeck plus a shared
-  large-scale bearing meander. Both are required; see below.
-- **Olfactory sensor models** — MOX power law with asymmetric response
-  dynamics, drift, 1/f noise, and ADC quantisation through the voltage divider.
-- **A plume realism gate** that runs in CI and fails builds whose plume
-  statistics stop matching published turbulence theory.
-- **Evidence provenance** on every physical coefficient.
+```python
+from scentience_olfaction import OlfactionWorld
 
-## The two results worth knowing before you use it
-
-**1. Large-scale meander is not optional.** 600 s at 100 Hz, probe 8 m
-downwind:
-
-| configuration | blank-duration CV | gate |
-|---|---|---|
-| small + large scale turbulence | **2.31** | PASS |
-| meander ablated | **0.96** | FAIL |
-| Gaussian plume + slow meander | — (always on) | FAIL |
-
-A blank-duration CV below 1 means exponentially distributed blanks: no long
-absences, no search problem, and a policy that learns gradient ascent and fails
-on hardware. Blank/whiff tail exponents here bracket the -3/2 first-return
-exponent predicted by Celani, Villermaux & Vergassola (PRX 4:041015).
-
-**2. Sensor bandwidth, not plume physics, gates how much a policy can see.**
-Identical plume, two sensor profiles:
-
-| profile | tau_fall | whiff events retained |
-|---|---|---|
-| `packaged_slow` | 12 s | **19 %** |
-| `fast_modulated` | 46 ms | **97 %** |
-
-Those train different POMDPs. State which profile you used in every result.
-
-## Install
-
-```bash
-pip install -e ".[dev]"      # core + Warp + torch + pytest
-pytest -m "not isaac"        # physics validation, CPU only, no Isaac needed
+world = OlfactionWorld.simple()               # ethanol source, 1 m/s wind
+world.step(0.05)
+reading = world.read((5.0, 0.0, 1.0))         # virtual Scentience device
+truth   = world.truth((5.0, 0.0, 1.0))        # ground truth, for debugging
 ```
 
-The core imports with **no Isaac and no GPU**. That is a hard requirement, not
-a convenience: it is what lets the physics run in CI.
+`pip install -e .` -- core needs only NumPy. `pip install -e ".[dev]"` for
+everything (Warp, torch, gymnasium, pytest). `pytest -m "not isaac"` runs the
+full physics validation on CPU, no Isaac, no GPU.
 
-## Honesty about coefficients
+## What is in the box
 
-Every physical constant carries an evidence level — `MEASURED`, `DATASHEET`,
-`DIGITIZED`, `SYNTHESIZED`, `ASSUMED` — with its source and conditions. Ask any
-model for `.provenance.report()`, and use `.claim_check()` before writing a
-quantitative statement. Sensor sensitivity coefficients are currently
-`DIGITIZED` or `SYNTHESIZED`: they are inversions of open-source driver fits
-digitised from datasheet graphs, because the MiCS-6814 datasheet publishes no
-tabulated coefficients. They are hypotheses about the sensor, not measurements
-of it, and the package says so at runtime.
+| | |
+|---|---|
+| **Plume transport** | Filament model (Farrell 2002): multi-species, multiple emitters, walls (occupancy + line-of-sight + slide), two-scale turbulence. NumPy reference + Warp GPU twin, parity-tested. |
+| **Sensor suite** | MiCS-6814-class MOX (power law -> asymmetric lag -> drift/1-f -> ADC divider), electrochemical (linear + Cottrell), SCD4x CO2 (photoacoustic, ASC), PID (TN-106). Full Scentience V1 device in the hardware BLE channel schema. |
+| **Realism gate** | CI-enforced plume statistics vs published turbulence theory. A plume that gets too easy FAILS THE BUILD. |
+| **OIO** | Olfactory Inertial Odometry reference implementation (France et al., arXiv:2506.04539; Chasing Ghosts bout detection) with UAV / quadruped / biped / arm presets. |
+| **RL** | Gymnasium `PlumeNavEnv` (hardware-shaped observations), cast-and-surge + random baselines, episode recorder. Isaac Lab `SensorBase` integration. |
+| **Provenance** | Every physical constant carries an evidence level (MEASURED/DATASHEET/DIGITIZED/SYNTHESIZED/ASSUMED); `claim_check()` refuses claims the evidence cannot support. |
 
-## License
+## Examples
 
-Apache-2.0. Every equation is implemented from the published literature
-(Farrell et al. 2002; Celani et al. 2014); no GADEN source (LGPL-3.0) is
-transcribed here.
+```bash
+python examples/01_minimal.py                                # smell in 5 lines
+python examples/02_walls_and_wind.py                         # plume vs a wall
+python examples/03_olfactory_inertial_odometry.py --platform quadruped   # or uav|biped|arm
+python examples/04_gym_baseline.py                           # the benchmark loop
+```
+
+## The two numbers to know before using it
+
+**1. Large-scale meander is not optional.** Blank-duration CV 2.31 with it,
+0.96 without (600 s @ 100 Hz, 8 m downwind). CV < 1 means exponential blanks:
+no search problem, and policies learn gradient ascent that fails on hardware.
+Tail exponents bracket the -3/2 of Celani et al. (PRX 4:041015).
+
+**2. Sensor bandwidth gates what a policy can see.** On an identical plume,
+a packaged MOX (tau_fall 12 s) retains **19%** of whiff events; a fast sensor
+(46 ms, time constants per Dennler et al., Sci. Adv. 2024) retains **97%**.
+State your `sensor_profile` in every result.
+
+## Isaac Sim / Isaac Lab status
+
+The Isaac Lab sensor (`scentience_isaaclab/`) targets Isaac Lab 2.3.x /
+Isaac Sim 5.1 and is written against the verified API -- but has NOT yet been
+executed in a live install. Run `scripts/validate_install.py` inside Isaac and
+paste its output into `docs/ISAAC_COMPATIBILITY.md` before relying on it.
+Until then, the supported paths are standalone Python and Gymnasium.
+
+## Honesty policy
+
+Sensitivity coefficients ship as DIGITIZED/SYNTHESIZED evidence (datasheets
+publish graphs, not tables) and the package says so at runtime. Buoyancy is
+off rather than wrong. GADEN (LGPL) is cited, never transcribed -- the plume
+is implemented from Farrell's published equations. See
+`docs/LICENSES_AND_PROVENANCE.md`.
+
+## Cite
+
+See `CITATION.cff`. Related Scentience research: olfaction standardization
+(arXiv:2506.00398), olfactory inertial odometry (arXiv:2506.04539),
+accelerated chronoamperometry (arXiv:2506.04540), Chasing Ghosts
+(arXiv:2602.19577).
+
+Apache-2.0.

@@ -17,7 +17,7 @@ PROBE = np.array([[8.0, 0.0, 1.0]])
 CFG = dict(source_pos=(0., 0., 1.), release_rate_hz=40.0, wind_mean=(1., 0., 0.),
            turbulence_intensity=0.30, lagrangian_timescale=1.5,
            meander_std_rad=0.22, meander_timescale=15.0, gamma=2e-3, sigma0=0.05,
-           max_filaments=8000, max_age_s=40.0, specific_gravity=1.0)
+           max_filaments=8000, max_age_s=40.0)
 
 
 def _record(seconds=600.0, **over):

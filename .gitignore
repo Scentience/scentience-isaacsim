@@ -6,3 +6,5 @@ build/
 dist/
 .venv/
 *.npz
+*_*.md
+*SKILL.md
