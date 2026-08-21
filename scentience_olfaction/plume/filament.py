@@ -26,7 +26,7 @@ the fast path and tests/test_warp_parity.py keeps them honest.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 

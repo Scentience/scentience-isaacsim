@@ -1,6 +1,10 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
+import pytest
+
+wp_mod = pytest.importorskip("warp")  # optional [gpu] extra
+
 from scentience_olfaction.plume.filament import FilamentPlumeConfig
 from scentience_olfaction.transport.filament_warp import WarpFilamentPlume
 

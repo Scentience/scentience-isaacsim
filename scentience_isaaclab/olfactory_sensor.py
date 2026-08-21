@@ -34,7 +34,7 @@ from dataclasses import dataclass
 import torch
 
 try:  # Isaac Lab is absent in CI; the physics core must stay importable.
-    import isaaclab.sim as sim_utils
+    import isaaclab.sim as sim_utils  # noqa: F401  (availability probe)
     import isaaclab.utils.math as math_utils
     from isaaclab.sensors import SensorBase, SensorBaseCfg
     from isaaclab.utils import configclass
@@ -150,7 +150,7 @@ if _HAS_ISAAC:
             )
 
             c, s = len(self.cfg.channel_names), len(self.cfg.species)
-            z = lambda k: torch.zeros(n, k, device=self._device)
+            z = lambda k: torch.zeros(n, k, device=self._device)  # noqa: E731
             self._data.pos_w, self._data.channels = z(3), z(c)
             self._data.concentration_gt, self._data.wind_w = z(s), z(3)
 

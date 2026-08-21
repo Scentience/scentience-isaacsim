@@ -20,7 +20,23 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-import torch
+try:
+    import torch
+except ImportError:  # pragma: no cover - only hit in a numpy-only install
+    # The batched device below genuinely needs torch, but CHANNELS, PROFILES and
+    # register_coefficients() are pure metadata. ARCHITECTURE.md invariant 4
+    # ("core imports with no Isaac, no GPU, no torch") and the README's
+    # provenance claim both require those to stay readable without it, so defer
+    # the failure to the first actual torch use instead of import time.
+    class _TorchUnavailable:
+        def __getattr__(self, name):
+            raise ImportError(
+                "scentience_olfaction.sensors.scentience_v1 needs torch for the "
+                "batched device (attribute 'torch.%s'): pip install torch. "
+                "The NumPy device is scentience_olfaction.sensors.device_np." % name
+            )
+
+    torch = _TorchUnavailable()
 
 from ..provenance import Evidence, ProvenanceRegistry, coeff, synthesized_from
 

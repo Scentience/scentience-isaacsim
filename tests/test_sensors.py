@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
 import pytest
 from scentience_olfaction.sensors.mox import (MICS6814_RED, MoxChannel,
-                                              MoxChannelConfig, absolute_humidity)
+                                              absolute_humidity)
 from scentience_olfaction.sensors.electrochemical import ECChannel, EC_CO
 from scentience_olfaction.sensors.scd4x import SCD4xChannel, SCD4xConfig
 from scentience_olfaction.sensors.pid import PIDChannel, PIDConfig

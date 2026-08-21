@@ -6,7 +6,6 @@ import sys, os, math
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dataclasses import replace
 import numpy as np
-import pytest
 from scentience_olfaction.sensors.mox import (MICS6814_OX, MICS6814_RED,
                                               MoxChannel, absolute_humidity)
 from scentience_olfaction.sensors.electrochemical import EC_CO, ECChannel

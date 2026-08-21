@@ -16,7 +16,7 @@ firmware reports, so the comparison is apples-to-apples.
 CPU only. No Isaac, no GPU.
 """
 
-import sys, os, math
+import sys, os, math, tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import numpy as np
@@ -39,7 +39,6 @@ def base_cfg(**kw):
         turbulence_intensity=0.30, lagrangian_timescale=1.5,
         meander_std_rad=0.22, meander_timescale=15.0,
         gamma=2.0e-3, sigma0=0.05, max_filaments=8000, max_age_s=40.0,
-        specific_gravity=1.0,
     )
     c.update(kw)
     return FilamentPlumeConfig(**c)
@@ -130,8 +129,8 @@ def report(name, sig, thr):
 if __name__ == "__main__":
     print(f"Simulating {T_END:.0f} s @ {1/DT:.0f} Hz, probe {PROBE[0]}")
 
-    full = run_plume(base_cfg(), cache="/tmp/full.npz")
-    nomeander = run_plume(base_cfg(meander_std_rad=0.0), cache="/tmp/nm.npz")
+    full = run_plume(base_cfg(), cache=os.path.join(tempfile.gettempdir(), "full.npz"))
+    nomeander = run_plume(base_cfg(meander_std_rad=0.0), cache=os.path.join(tempfile.gettempdir(), "nm.npz"))
     gau = run_gaussian()
 
     # One absolute threshold for everything: 10% of the full plume's

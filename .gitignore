@@ -1,11 +1,18 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+*.ruff_cache/
 *.egg-info/
 build/
 dist/
 .venv/
 *.npz
-*_*.md
+# NOTE: this was `*_*.md`, which silently ignored EVERY markdown file with an
+# underscore -- including docs/LICENSES_AND_PROVENANCE.md and
+# docs/CHEMICAL_MODEL.md, both of which README/CONTRIBUTING link to, plus
+# conventional names like CODE_OF_CONDUCT.md. Keep agent scratch out by name.
 *SKILL.md
+notes/
 *.DS_Store
+*.runs/
+*.ps1

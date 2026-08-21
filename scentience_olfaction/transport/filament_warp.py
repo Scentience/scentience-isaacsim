@@ -16,7 +16,6 @@ the policy tensor without a device round trip.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 
 import numpy as np
 import warp as wp

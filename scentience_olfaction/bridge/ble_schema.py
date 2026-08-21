@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from ..sensors.device_np import ScentienceV1
 from ..sensors.mox import MICS6814_NH3, MICS6814_OX, MICS6814_RED
 
 _PRIMARY = {  # die -> (BLE compound key, (A, beta) of the primary analyte)

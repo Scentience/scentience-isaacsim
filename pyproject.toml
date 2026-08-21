@@ -16,10 +16,22 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: Apache Software License",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  # Each of these was run green against the full `pytest -m "not isaac"` suite.
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
 ]
 # Core stays importable with NO Isaac and NO GPU. That is a hard requirement:
 # it is what lets the physics run in CI and lets non-Isaac users adopt it.
 dependencies = ["numpy>=1.24"]
+
+# Taken from `git remote get-url origin`. NOTE: CITATION.cff currently says
+# .../scentience-isaac-olfaction, which does not match. Reconcile before release.
+[project.urls]
+Homepage = "https://github.com/Scentience/scentience-isaacsim"
+Repository = "https://github.com/Scentience/scentience-isaacsim"
+Issues = "https://github.com/Scentience/scentience-isaacsim/issues"
 
 [project.optional-dependencies]
 gpu = ["warp-lang>=1.5"]
@@ -27,7 +39,7 @@ torch = ["torch>=2.0"]
 envs = ["gymnasium>=0.29"]
 bridge = ["scentience>=2.2"]
 yaml = ["pyyaml"]
-dev = ["pytest>=7", "pytest-cov", "ruff", "warp-lang>=1.5", "torch>=2.0", "scipy", "gymnasium>=0.29"]
+dev = ["pytest>=7", "pytest-cov", "ruff>=0.16,<0.17", "warp-lang>=1.5", "torch>=2.0", "scipy", "gymnasium>=0.29"]
 
 [tool.setuptools.packages.find]
 include = ["scentience_olfaction*", "scentience_isaaclab*"]
@@ -35,6 +47,25 @@ include = ["scentience_olfaction*", "scentience_isaaclab*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+# Pinned explicitly. Ruff's implicit default rule set has widened across
+# releases, so relying on it means `ruff check .` in CI can go red on a ruff
+# upgrade with no change to this repo -- which is what had happened.
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+  # Standalone-runnable files intentionally open with
+  #   import sys, os; sys.path.insert(0, ...)
+  # so `python tests/foo.py` and `python examples/foo.py` work without an
+  # install. That idiom trips all three of these.
+  "E401",  # multiple imports on one line
+  "E402",  # module import not at top of file
+  "E702",  # multiple statements on one line (semicolon)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Kit extensions re-export their public surface via star-import by convention.
+"isaac_extension/**/__init__.py" = ["F403"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
