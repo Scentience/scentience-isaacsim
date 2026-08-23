@@ -23,14 +23,14 @@ import numpy as np
 
 from scentience_olfaction.plume.filament import FilamentPlume, FilamentPlumeConfig
 from scentience_olfaction.sensors.mox import (
-    MICS6814_RED, FAST_OVERRIDES, MoxChannel, MoxChannelConfig,
+    MOX_RED, FAST_OVERRIDES, MoxChannel, MoxChannelConfig,
 )
 from scentience_olfaction.validation import plume_stats as ps
 
 DT = 0.01
 T_END = 600.0
 PROBE = np.array([[8.0, 0.0, 1.0]])
-A_ETH, B_ETH = MICS6814_RED.sensitivity["ethanol"]
+A_ETH, B_ETH = MOX_RED.sensitivity["ethanol"]
 
 
 def base_cfg(**kw):
@@ -82,7 +82,7 @@ def through_sensor(conc, profile):
     Inverting to apparent-ppm instead would compare a noisy, heavily
     compressed nonlinear reconstruction against a clean ground truth.
     """
-    cfg = MoxChannelConfig(**dict(MICS6814_RED.__dict__))
+    cfg = MoxChannelConfig(**dict(MOX_RED.__dict__))
     if profile == "fast":
         for k, v in FAST_OVERRIDES.items():
             setattr(cfg, k, v)

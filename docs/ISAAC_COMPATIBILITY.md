@@ -1,7 +1,39 @@
 # Isaac compatibility status
 
-**STATUS: UNVALIDATED. Blocked by GPU hardware, not by code.**
-Last checked: 2026-08-21.
+**STATUS: API-contract validated against isaaclab 2.3.2; NOT yet executed in a
+live Isaac Sim install (blocked by GPU hardware).**
+Last checked: 2026-08-23.
+
+## Validation tiers
+
+| Tier | What | Status |
+|---|---|---|
+| 1. Static contract | Every symbol/signature/field this code assumes, checked against the real `isaaclab==2.3.2` wheel from PyPI. `scripts/check_isaaclab_contract.py`. | **22/22 PASS** (2026-08-23) |
+| 2. Executed binding | Our classes defined and configured by GENUINE isaaclab 2.3.2 code (real `SensorBase`, real `@configclass`, real `quat_apply`), with only the Omniverse kit runtime stubbed. `scripts/check_isaaclab_binding.py`. | **7/7 PASS** (2026-08-23) |
+| 3. Live install | `scripts/validate_install.py` inside a running Isaac Sim 5.1 + Isaac Lab 2.3.x. | **NOT RUN** -- needs RTX hardware |
+
+Tier 2 caught a real bug before any live install existed: `OlfactorySensorCfg`
+bound `class_type` by post-hoc class-attribute assignment, but `@configclass`
+had already baked the `None` default into `__init__`, so every INSTANCE had
+`cfg.class_type = None` and sensor construction would have failed on first use.
+Fixed by binding at definition (upstream Isaac Lab convention). This is
+exactly the failure `validate_install.py` check 4 exists to catch -- it now
+passes at tier 2.
+
+Notable tier-1 facts: `SensorBase._update_buffers_impl` takes `env_ids`
+(the 2.x API this code targets, not 3.0's `env_mask`); `imu.py` lines 199-200
+in the real wheel are line-for-line the same `get_transforms()` + `roll(1)`
+xyzw->wxyz handling our sensor uses; isaaclab itself imports
+`SimulationManager` from the same path we do (14 files). The PyPI `isaaclab`
+distribution is 2.3.2; the inner package reports `__version__` 0.54.2.
+
+What tier 2 deliberately does NOT prove: PhysX views, prim binding, timeline
+callbacks, rendering. Until tier 3 runs, treat runtime behaviour inside Isaac
+as unverified.
+
+---
+
+Historical record of the tier-3 blocker follows (2026-08-21).
 
 Per `README.md` and `CONTRIBUTING.md`, this file may only claim the Isaac
 integration is validated once `scripts/validate_install.py` passes inside a

@@ -2,10 +2,10 @@ import sys, os, math
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
 import pytest
-from scentience_olfaction.sensors.mox import (MICS6814_RED, MoxChannel,
+from scentience_olfaction.sensors.mox import (MOX_RED, MoxChannel,
                                               absolute_humidity)
 from scentience_olfaction.sensors.electrochemical import ECChannel, EC_CO
-from scentience_olfaction.sensors.scd4x import SCD4xChannel, SCD4xConfig
+from scentience_olfaction.sensors.co2_sensor import CO2Channel, CO2Config
 from scentience_olfaction.sensors.pid import PIDChannel, PIDConfig
 from scentience_olfaction.sensors.device_np import ScentienceV1, CHANNELS
 
@@ -16,7 +16,7 @@ def quiet(cfg):
 
 
 def test_mox_asymmetric_tau():
-    ch = MoxChannel(quiet(MICS6814_RED), np.random.default_rng(0), randomize=False)
+    ch = MoxChannel(quiet(MOX_RED), np.random.default_rng(0), randomize=False)
     on = [ch.step({"ethanol": 100.0}, 0.1)["ratio_measured"] for _ in range(300)]
     off = [ch.step({}, 0.1)["ratio_measured"] for _ in range(600)]
     on, off = np.array(on), np.array(off)
@@ -26,7 +26,7 @@ def test_mox_asymmetric_tau():
 
 
 def test_mox_power_law_monotone_and_humidity():
-    ch = MoxChannel(quiet(MICS6814_RED), np.random.default_rng(0), randomize=False)
+    ch = MoxChannel(quiet(MOX_RED), np.random.default_rng(0), randomize=False)
     r = []
     for c in (10.0, 30.0, 100.0, 300.0):
         ch.reset()
@@ -48,7 +48,7 @@ def test_adc_resolution_collapse_at_high_rs():
     """The (Rs+RL)^2 effect: at high Rs (clean air on a megohm die) a 12-bit
     ADC cannot distinguish neighbouring Rs values; at low Rs it can."""
     from dataclasses import replace
-    cfg = replace(quiet(MICS6814_RED), adc_bits=12, r0_nominal=1.5e6)
+    cfg = replace(quiet(MOX_RED), adc_bits=12, r0_nominal=1.5e6)
     ch = MoxChannel(cfg, np.random.default_rng(0), randomize=False)
     def counts_for(c):
         ch.reset()
@@ -80,15 +80,15 @@ def test_ec_linearity_and_cottrell():
 
 
 def test_scd4x_slow_and_asc():
-    co2 = SCD4xChannel(SCD4xConfig(), np.random.default_rng(0))
+    co2 = CO2Channel(CO2Config(), np.random.default_rng(0))
     # step of +500 ppm: at t=60s the response should be ~63% (tau63)
     for _ in range(600):
         r = co2.step(500.0, 0.1)
     got = r["co2_ppm"] - 420.0
     assert 0.5 * 500 < got < 0.75 * 500, "tau63=60 s behaviour"
     # ASC drags calibration down in never-clean air
-    cfg = SCD4xConfig(asc_window_s=100.0)
-    c2 = SCD4xChannel(cfg, np.random.default_rng(0))
+    cfg = CO2Config(asc_window_s=100.0)
+    c2 = CO2Channel(cfg, np.random.default_rng(0))
     for _ in range(3000):
         r2 = c2.step(600.0, 0.1)   # 300 s continuously elevated
     assert r2["asc_offset_ppm"] < -50.0, "ASC should have pulled baseline down"

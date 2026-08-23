@@ -29,19 +29,23 @@ winget install --id Python.Python.3.11
 
 ## Run
 
+Windows (PowerShell) -- substitute `.venv/bin/python` on Linux/macOS:
+
 ```powershell
-.\run.ps1 test        # pytest -m "not isaac"   -> 62 passed
-.\run.ps1 examples    # all four examples
-.\run.ps1 physics     # scripts/validate_physics.py
-.\run.ps1 provenance  # scripts/provenance_demo.py
-.\run.ps1 isaac       # scripts/validate_install.py inside Isaac Sim
+.\.venv\Scripts\python.exe -m pytest -m "not isaac"          # 62 passed
+.\.venv\Scripts\python.exe examples\01_minimal.py
+.\.venv\Scripts\python.exe examples\02_walls_and_wind.py
+.\.venv\Scripts\python.exe examples\03_olfactory_inertial_odometry.py --platform quadruped
+.\.venv\Scripts\python.exe examples\04_gym_baseline.py
+.\.venv\Scripts\python.exe scripts\validate_physics.py       # the realism gate
+.\.venv\Scripts\python.exe scripts\provenance_demo.py        # evidence levels
 ```
 
-Or directly:
+The Isaac integration check runs inside Isaac Sim's own interpreter, not this
+venv, and is expected to fail on hardware without RT cores:
 
 ```powershell
-.\.venv\Scripts\python.exe examples\01_minimal.py
-.\.venv\Scripts\python.exe examples\03_olfactory_inertial_odometry.py --platform quadruped
+$env:PYTHONPATH = $PWD; C:\isaacsim\python.bat scripts\validate_install.py
 ```
 
 ## Verified output (2026-08-21)

@@ -25,12 +25,17 @@ class OlfactionWorld:
     """A plume plus one or more virtual Scentience devices."""
 
     def __init__(self, plume: FilamentPlume,
-                 sensor_profile: str = "packaged_slow", seed: int | None = 0):
+                 sensor_profile: str = "packaged_slow", seed: int | None = 0,
+                 stereo_baseline_m: float = 0.04):
         self.plume = plume
         self.sensor_profile = sensor_profile
         self._devices: dict[str, ScentienceV1] = {}
         self._seed = seed or 0
         self.channel_names = CHANNELS
+        self.stereo_baseline_m = stereo_baseline_m
+        """Centre-to-centre spacing of the two MiCS-6814 dies. Evidence:
+        ASSUMED (typical dev-board spacing) -- measure YOUR kit and set it.
+        Used only when `read(..., heading=...)` is given; see provenance."""
 
     # ----------------------------------------------------------- constructors
     @classmethod
@@ -56,12 +61,27 @@ class OlfactionWorld:
         self.plume.step(dt)
 
     def read(self, position, dt: float | None = None, name: str = "nose",
-             state: DeviceState | None = None) -> dict[str, float]:
+             state: DeviceState | None = None,
+             heading: float | None = None) -> dict[str, float]:
         """Simulated device reading at a world position -- what the robot sees.
         `dt` defaults to the last plume step size assumption of 0.05 s; pass
-        your control period for correct sensor dynamics."""
-        conc = self.truth(position)
-        return self._device(name).step(conc, dt if dt is not None else 0.05, state)
+        your control period for correct sensor dynamics.
+
+        Stereo olfaction: pass `heading` (rad, world frame, XY plane) and the
+        two MiCS dies sample separated points -- `chem_left_*` is the LEFT die,
+        `chem_right_*` the RIGHT die, `stereo_baseline_m` apart, perpendicular to
+        the heading. Without `heading`, both dies sample `position` (mono),
+        which is the pre-stereo behaviour, unchanged."""
+        dt = dt if dt is not None else 0.05
+        dev = self._device(name)
+        if heading is None or self.stereo_baseline_m <= 0.0:
+            return dev.step(self.truth(position), dt, state)
+        p = np.asarray(position, float)
+        half = 0.5 * self.stereo_baseline_m
+        left_n = np.array([-np.sin(heading), np.cos(heading), 0.0])
+        conc_l = self.truth(p + half * left_n)
+        conc_r = self.truth(p - half * left_n)
+        return dev.step(conc_l, dt, state, conc_ppm_2=conc_r)
 
     def truth(self, position) -> dict[str, float]:
         """Ground-truth ppm by species. For debugging, labels, and reward

@@ -42,8 +42,8 @@ from ..provenance import Evidence, ProvenanceRegistry, coeff, synthesized_from
 
 # Channel order IS the Scentience BLE schema. Do not reorder.
 CHANNELS = (
-    "mics1_red", "mics1_nh3", "mics1_ox",
-    "mics2_red", "mics2_nh3", "mics2_ox",
+    "chem_left_red", "chem_left_nh3", "chem_left_ox",
+    "chem_right_red", "chem_right_nh3", "chem_right_ox",
     "co2_ppm", "temperature_c", "relative_humidity", "ec1", "ec2",
 )
 
@@ -89,6 +89,12 @@ def register_coefficients(reg: ProvenanceRegistry) -> ProvenanceRegistry:
     reg.register("scd4x.tau63", coeff(
         60.0, Evidence.DATASHEET, "Sensirion SCD4x datasheet v1.5", units="s",
         notes="photoacoustic, NOT NDIR; t90 ~138 s, cannot resolve a plume whiff"))
+    reg.register("device.stereo_baseline_m", coeff(
+        0.04, Evidence.ASSUMED, "typical dev-board spacing of the two MiCS-6814 dies",
+        units="m",
+        notes="NOT measured on the Scentience dev kit; measure the centre-to-centre "
+              "die spacing on your board and set OlfactionWorld(stereo_baseline_m=...) "
+              "/ PlumeNavConfig.stereo_baseline_m before quantitative stereo claims"))
     return reg
 
 

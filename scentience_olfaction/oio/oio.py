@@ -82,6 +82,47 @@ class BoutDetector:
         return {"bout": self.in_bout, "onset": onset, "excess": d}
 
 
+class DivergenceSignal:
+    """Dual-timescale divergence with a signal line (Chasing Ghosts, Sec.
+    III-E1, Eqs. 5-7; France et al., arXiv:2602.19577).
+
+    D = E_alpha(C) - E_beta(C) is the fast-minus-slow EMA divergence of the
+    odor signal C; S = E_rho(D) with alpha < rho < beta is a smoothed
+    expectation of D. D above S means accelerating odor -- consistent with
+    plume ENTRY, so keep surging; D below S means the odor trend is losing
+    momentum -- plume EXIT, trigger casting. The paper likens D to a
+    temporal-prediction difference (it is a filter, not TD learning).
+
+    The paper's empirically deduced periods are alpha=3, beta=8, rho=5
+    samples at 1 Hz sampling; the defaults below express the same values as
+    time constants in seconds so the filter is timestep-invariant here.
+    """
+
+    def __init__(self, tau_fast_s: float = 3.0, tau_slow_s: float = 8.0,
+                 tau_signal_s: float = 5.0):
+        assert tau_fast_s < tau_signal_s < tau_slow_s, \
+            "paper requires alpha < rho < beta"
+        self.tf, self.ts, self.tr = tau_fast_s, tau_slow_s, tau_signal_s
+        self.reset()
+
+    def reset(self) -> None:
+        self.fast = self.slow = self.signal = None
+
+    def step(self, x: float, dt: float) -> dict:
+        af = 1.0 - math.exp(-dt / self.tf)
+        asl = 1.0 - math.exp(-dt / self.ts)
+        ar = 1.0 - math.exp(-dt / self.tr)
+        if self.fast is None:
+            self.fast = self.slow = x
+            self.signal = 0.0
+        self.fast += af * (x - self.fast)
+        self.slow += asl * (x - self.slow)
+        d = self.fast - self.slow
+        self.signal += ar * (d - self.signal)
+        return {"divergence": d, "signal": self.signal,
+                "surging": d >= self.signal}
+
+
 # ---------------------------------------------------------------------------
 # Platform presets -- IMU/motion characteristics per robot class
 # ---------------------------------------------------------------------------

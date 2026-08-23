@@ -1,0 +1,57 @@
+scentience-olfaction
+Copyright 2026 Scentience, Inc.
+
+This product includes software developed by Scentience, Inc.
+https://github.com/scentience/scentience-isaacsim
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+------------------------------------------------------------------------------
+CITATION REQUEST
+
+If you use this software in work you publish, please cite it:
+
+  France, Kordel K. and Scentience, Inc. (2026).
+  scentience-olfaction: olfactory sensing and chemical plume simulation
+  for Isaac Sim. Version 0.1.0. Apache-2.0.
+  https://github.com/scentience/scentience-isaacsim
+
+Machine-readable metadata is in CITATION.cff.
+
+Please also cite the underlying science, not only this package:
+  - Farrell et al. (2002), Environmental Fluid Mechanics 2:143-169
+    -- the filament plume transport model.
+  - Dennler et al. (2024), Science Advances 10:eadp1764
+    -- the fast MOX sensor time constants.
+  - France et al., arXiv:2506.04539
+    -- olfactory inertial odometry.
+
+------------------------------------------------------------------------------
+RESEARCH SOFTWARE -- NO WARRANTY
+
+This is research software. Its output is a hypothesis, not a measurement.
+
+Sensor coefficients are digitized from published graphs or synthesized by
+analogy, NOT measured on Scentience hardware. The plume model is validated
+against published turbulence statistics, not against a wind tunnel. The
+Isaac Sim / Isaac Lab integration is unvalidated.
+
+Nothing here is calibrated, qualified, or certified for safety, medical,
+environmental-compliance, or life-critical use. Do not use simulator output
+to decide whether a real atmosphere is safe to breathe.
+
+The software is provided "AS IS", WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, express or implied (Apache-2.0 section 7). Scentience, Inc. accepts no
+liability for errors in this software or for any decision made on the basis
+of its output (Apache-2.0 section 8).
+
+------------------------------------------------------------------------------
+THIRD-PARTY
+
+GADEN (Monroy et al., Sensors 2017) is LGPL-3.0 and is NOT used in this
+codebase. The filament model here is an independent implementation from
+Farrell et al.'s published equations; GADEN served only as a behavioural
+cross-check. See docs/LICENSES_AND_PROVENANCE.md.
+
+Isaac Sim and Isaac Lab are NVIDIA products, neither vendored nor
+redistributed here.

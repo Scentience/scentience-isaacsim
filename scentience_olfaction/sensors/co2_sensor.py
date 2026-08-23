@@ -28,7 +28,7 @@ import numpy as np
 
 
 @dataclass
-class SCD4xConfig:
+class CO2Config:
     tau63_s: float = 60.0
     sample_interval_s: float = 5.0
     accuracy_base_ppm: float = 50.0     # +/-(50 ppm + 2.5 %) band, 400-1000 ppm
@@ -40,8 +40,8 @@ class SCD4xConfig:
     asc_gain: float = 0.2               # fraction of (400 - min) applied per window
 
 
-class SCD4xChannel:
-    def __init__(self, cfg: SCD4xConfig, rng: np.random.Generator):
+class CO2Channel:
+    def __init__(self, cfg: CO2Config, rng: np.random.Generator):
         self.cfg = cfg
         self.rng = rng
         self.reset()

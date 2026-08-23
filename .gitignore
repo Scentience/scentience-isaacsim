@@ -1,4 +1,4 @@
-*__pycache__/
+*__pycache__/*
 *.pyc
 .pytest_cache/
 *.ruff_cache/
@@ -16,3 +16,4 @@ notes/
 *.DS_Store
 *.runs/
 *.ps1
+/_paper/

@@ -18,13 +18,13 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from .electrochemical import EC_CO, EC_H2S, ECChannel
-from .mox import (FAST_OVERRIDES, MICS6814_NH3, MICS6814_OX, MICS6814_RED,
+from .mox import (FAST_OVERRIDES, MOX_NH3, MOX_OX, MOX_RED,
                   MoxChannel, MoxChannelConfig)
-from .scd4x import SCD4xChannel, SCD4xConfig
+from .co2_sensor import CO2Channel, CO2Config
 
 CHANNELS = (
-    "mics1_red", "mics1_nh3", "mics1_ox",
-    "mics2_red", "mics2_nh3", "mics2_ox",
+    "chem_left_red", "chem_left_nh3", "chem_left_ox",
+    "chem_right_red", "chem_right_nh3", "chem_right_ox",
     "co2_ppm", "temperature_c", "relative_humidity", "ec1", "ec2",
 )
 
@@ -63,9 +63,9 @@ class ScentienceV1:
                 cfg = replace(cfg, **FAST_OVERRIDES)
             return MoxChannel(cfg, self.rng, randomize=randomize_unit)
 
-        self.mox = [mox(MICS6814_RED), mox(MICS6814_NH3), mox(MICS6814_OX),
-                    mox(MICS6814_RED), mox(MICS6814_NH3), mox(MICS6814_OX)]
-        self.co2 = SCD4xChannel(SCD4xConfig(), self.rng)
+        self.mox = [mox(MOX_RED), mox(MOX_NH3), mox(MOX_OX),
+                    mox(MOX_RED), mox(MOX_NH3), mox(MOX_OX)]
+        self.co2 = CO2Channel(CO2Config(), self.rng)
         self.ec = [ECChannel(EC_CO, self.rng), ECChannel(EC_H2S, self.rng)]
 
     def reset(self) -> None:
@@ -76,11 +76,23 @@ class ScentienceV1:
             e.reset()
 
     def step(self, conc_ppm: dict[str, float], dt: float,
-             state: DeviceState | None = None) -> dict[str, float]:
+             state: DeviceState | None = None,
+             conc_ppm_2: dict[str, float] | None = None) -> dict[str, float]:
+        """One device tick.
+
+        `conc_ppm` feeds MiCS die 1 (`chem_left_*`), the SCD4x and the EC cells.
+        `conc_ppm_2`, when given, feeds MiCS die 2 (`chem_right_*`) -- this is the
+        stereo-olfaction path: the two dies sit at different points on the
+        board, so sampling the plume at two positions and passing both here
+        reproduces the inter-sensor concentration difference the hardware
+        exists to measure. Omitted, die 2 sees the same air as die 1 (mono),
+        which is the pre-stereo behaviour, unchanged.
+        """
         st = state or DeviceState()
         out: dict[str, float] = {}
-        for name, ch in zip(CHANNELS[:6], self.mox):
-            r = ch.step(conc_ppm, dt, temp_c=st.temp_c, rh_pct=st.rh_pct,
+        for i, (name, ch) in enumerate(zip(CHANNELS[:6], self.mox)):
+            c = conc_ppm if (i < 3 or conc_ppm_2 is None) else conc_ppm_2
+            r = ch.step(c, dt, temp_c=st.temp_c, rh_pct=st.rh_pct,
                         flow_mps=st.flow_mps, heater_level=st.heater_level)
             out[name] = r["ratio_measured"]
         out["co2_ppm"] = self.co2.step(conc_ppm.get("carbon_dioxide", 0.0), dt)["co2_ppm"]

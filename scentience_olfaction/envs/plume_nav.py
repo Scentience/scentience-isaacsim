@@ -58,6 +58,12 @@ class PlumeNavConfig:
     spawn_box: tuple = ((12.0, -6.0), (24.0, 6.0))
     shaping_scale: float = 0.05
     baseline_tau_s: float = 20.0
+    stereo_baseline_m: float = 0.04
+    """Centre-to-centre spacing of the two MiCS-6814 dies (stereo olfaction):
+    chem_left_* samples the LEFT of the agent's heading, chem_right_* the RIGHT. The
+    inter-die concentration difference is the cue the kit's second sensor
+    exists to provide. 0.04 m is ASSUMED typical dev-board spacing -- measure
+    your kit. Set 0.0 for the old mono behaviour (both dies at the centre)."""
 
 
 class PlumeNavEnv(gym.Env):
@@ -125,11 +131,24 @@ class PlumeNavEnv(gym.Env):
     def _obs(self) -> np.ndarray:
         cfg = self.cfg
         p3 = np.array([self._pos[0], self._pos[1], cfg.z])
-        conc = dict(zip(self._plume.species_names,
-                        self._plume.sample_species(p3[None, :])[0]))
-        r = self._device.step(conc, cfg.dt, DeviceState(flow_mps=0.5))
-        mox = np.array([r[c] for c in ("mics1_red", "mics1_nh3", "mics1_ox",
-                                       "mics2_red", "mics2_nh3", "mics2_ox")])
+
+        def conc_at(p):
+            return dict(zip(self._plume.species_names,
+                            self._plume.sample_species(p[None, :])[0]))
+
+        if cfg.stereo_baseline_m > 0.0:
+            # Stereo: die 1 left of heading, die 2 right. The L/R difference
+            # is the lateralisation cue -- see PlumeNavConfig.stereo_baseline_m.
+            half = 0.5 * cfg.stereo_baseline_m
+            left = half * np.array([-math.sin(self._heading),
+                                    math.cos(self._heading), 0.0])
+            r = self._device.step(conc_at(p3 + left), cfg.dt,
+                                  DeviceState(flow_mps=0.5),
+                                  conc_ppm_2=conc_at(p3 - left))
+        else:
+            r = self._device.step(conc_at(p3), cfg.dt, DeviceState(flow_mps=0.5))
+        mox = np.array([r[c] for c in ("chem_left_red", "chem_left_nh3", "chem_left_ox",
+                                       "chem_right_red", "chem_right_nh3", "chem_right_ox")])
         # slow-EMA baseline tracker (what firmware runs); deflection below it
         if self._baseline is None:
             self._baseline = mox.copy()

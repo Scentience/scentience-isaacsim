@@ -203,7 +203,7 @@ class MoxChannel:
 # Derived algebraically from open-source driver inverse fits (C = a*r^b), which
 # were themselves digitised from the datasheet's log-log graphs.
 # --------------------------------------------------------------------------
-MICS6814_RED = MoxChannelConfig(
+MOX_RED = MoxChannelConfig(
     name="red",
     sensitivity={
         "carbon_monoxide": (3.37, 0.847),
@@ -217,7 +217,7 @@ MICS6814_RED = MoxChannelConfig(
     rs_r0_clean_air=1.0,
 )
 
-MICS6814_NH3 = MoxChannelConfig(
+MOX_NH3 = MoxChannelConfig(
     name="nh3",
     sensitivity={"ammonia": (0.94, 0.465), "ethanol": (1.0, 0.35)},
     r0_nominal=3.0e5,
@@ -225,7 +225,7 @@ MICS6814_NH3 = MoxChannelConfig(
     rs_r0_clean_air=1.0,
 )
 
-MICS6814_OX = MoxChannelConfig(
+MOX_OX = MoxChannelConfig(
     name="ox",
     sensitivity={"nitrogen_dioxide": (6.35, -1.01)},  # oxidizing: negative beta
     r0_nominal=5.0e3,

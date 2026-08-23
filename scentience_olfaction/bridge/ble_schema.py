@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from ..sensors.mox import MICS6814_NH3, MICS6814_OX, MICS6814_RED
+from ..sensors.mox import MOX_NH3, MOX_OX, MOX_RED
 
 _PRIMARY = {  # die -> (BLE compound key, (A, beta) of the primary analyte)
-    "mics1_red": ("C2H5OH", MICS6814_RED.sensitivity["ethanol"]),
-    "mics1_nh3": ("NH3", MICS6814_NH3.sensitivity["ammonia"]),
-    "mics1_ox": ("NO2", MICS6814_OX.sensitivity["nitrogen_dioxide"]),
+    "chem_left_red": ("C2H5OH", MOX_RED.sensitivity["ethanol"]),
+    "chem_left_nh3": ("NH3", MOX_NH3.sensitivity["ammonia"]),
+    "chem_left_ox": ("NO2", MOX_OX.sensitivity["nitrogen_dioxide"]),
 }
 
 

@@ -70,7 +70,7 @@ def run(platform: str, seed: int = 0, t_end: float = 60.0, verbose=True):
         conc = dict(zip(plume.species_names,
                         plume.sample_species(np.array([[true_p[0], true_p[1], 1.0]]))[0]))
         r = dev.step(conc, dt, DeviceState(flow_mps=spec.sensor_flow_mps))
-        mox = r["mics1_red"]
+        mox = r["chem_left_red"]
         baseline = mox if baseline is None else baseline + 0.002 * (mox - baseline)
         deflection = max(baseline - mox, 0.0)
 

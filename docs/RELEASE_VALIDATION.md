@@ -86,15 +86,122 @@ roughly doubles CV, and every ablated seed lands below the gate's 1.2 ceiling.
 
 Recommend quoting mean +/- sd, or stating seed and threshold.
 
+## Second pass (2026-08-23): licensing and documentation
+
+Resolved since the first pass:
+
+- **`CITATION.cff` repository URL** corrected by the maintainer.
+- **`LICENSE` was a stub.** It contained only the Apache header plus a note
+  reading "ACTION REQUIRED BEFORE PUBLIC RELEASE: replace this file with the
+  full, verbatim Apache License 2.0 text". Replaced with the verbatim 202-line
+  text from apache.org plus the filled-in appendix boilerplate. The licensing
+  rationale that was in the stub moved to `LICENSES_AND_PROVENANCE.md`, since a
+  LICENSE file should not carry prose that could read as modifying terms.
+- **`NOTICE` added.** Apache-2.0 section 4(c) obliges redistributors to
+  propagate NOTICE into derivative works, so this is the mechanism that gives
+  the citation request real reach. Verified present in both the sdist and the
+  wheel's `dist-info/licenses/`.
+- **Three referenced-but-missing docs written**: `LICENSES_AND_PROVENANCE.md`,
+  `CHEMICAL_MODEL.md`, `UPSTREAM_REQUESTS.md`. All five code sites that defer
+  to `CHEMICAL_MODEL.md` are now actually answered by it. Every
+  `[A-Z_]+\.md` cross-reference in the repo resolves.
+- **`_paper/` exclusion did not work.** The added pattern `*/_paper/*` requires
+  a leading directory component and so never matched root-level `_paper/`, and
+  the two files were already tracked -- `.gitignore` cannot untrack. Changed to
+  `/_paper/` and ran `git rm --cached -r _paper`. Confirmed absent from the
+  built sdist.
+- **`SETUP.md` pointed at an excluded file.** The new `*.ps1` rule excludes
+  `run.ps1`, so published instructions referenced a script users would not
+  receive. `SETUP.md` now gives direct interpreter commands and notes the
+  Linux/macOS path form.
+
+Licensing decision: **Apache-2.0 retained.** Citation is expressed as a
+strongly-worded norm via `CITATION.cff` + `NOTICE` rather than as a license
+condition, and research-status/no-warranty language is stated plainly without
+restricting use. This keeps OSI compliance, keeps the
+`License :: OSI Approved` classifier truthful, and preserves the commercial
+robotics adoption the LICENSE rationale names as the strategic goal.
+
 ## Left for the maintainer
 
-- **`CITATION.cff` points at the wrong repository.** It says
-  `github.com/scentience/scentience-isaac-olfaction`; `git remote` says
-  `github.com/Scentience/scentience-isaacsim`. Citations would 404.
-  `[project.urls]` was set from the git remote; reconcile the two.
-- **Docs referenced but never written**: `docs/LICENSES_AND_PROVENANCE.md`,
-  `docs/CHEMICAL_MODEL.md`, `docs/UPSTREAM_REQUESTS.md`. Now that `.gitignore`
-  no longer eats them, they need to exist -- the first is load-bearing for the
-  GADEN/LGPL claim in the README.
 - **Isaac Lab integration remains unvalidated** and cannot be validated on this
-  hardware. See `docs/ISAAC_COMPATIBILITY.md`.
+  hardware. See `ISAAC_COMPATIBILITY.md`. Disclosed in README, NOTICE and
+  `LICENSES_AND_PROVENANCE.md`, which is the honest handling for v0.1.
+- **Coefficient calibration** is the highest-value provenance upgrade
+  available: it would promote the MiCS-6814 constants from DIGITIZED to
+  MEASURED and unlock absolute-ppm claims. Tracked as UR-3 in
+  `UPSTREAM_REQUESTS.md`.
+- **Legal review.** The licensing documents here were written by engineers.
+  Have counsel read `LICENSE`, `NOTICE` and `LICENSES_AND_PROVENANCE.md` before
+  the public debut.
+
+## Third pass (2026-08-23): kit fidelity and Isaac API validation
+
+Release intent (stated by the maintainer): model the Scentience olfactory dev
+kit -- two MiCS-6814 sensors for STEREO olfaction plus one SCD-41 -- and
+first-order scent navigation.
+
+Audit against that intent found one substantive gap: **stereo was not
+modelled**. `ScentienceV1.step()` fed one concentration dict to all six MOX
+channels, so both dies always sampled the same point and the inter-die
+difference -- the cue the second sensor exists to provide -- was structurally
+zero. Fixed end-to-end, mono-back-compatible (see CHANGELOG); 6 new tests pin
+back-compat bit-identity, L/R physics, and the observation contract.
+SCD-41 was already faithful (SCD4x datasheet constants, tau63=60 s, ASC);
+navigation was already present (PlumeNavEnv + cast-and-surge baseline).
+
+Isaac Lab integration was promoted from "written, unvalidated" to
+"API-contract validated" without GPU hardware: 22/22 static checks against
+the real `isaaclab==2.3.2` wheel and 7/7 checks executing our classes under
+genuine isaaclab code (kit runtime stubbed). This caught a real
+`class_type`-binding bug that would have broken sensor construction in a live
+install. Live-install execution (tier 3) remains open and is disclosed. See
+docs/ISAAC_COMPATIBILITY.md.
+
+Full verification after all changes: `ruff check .` clean, 68 passed
+(62 prior + 6 stereo), all 5 examples run, sdist/wheel rebuild + twine PASS.
+
+## Fourth pass (2026-08-23): naming accessibility and paper alignment
+
+Two maintainer requests:
+
+**1. No part numbers in identifiers.** Every identifier and data key a
+developer touches is now beginner-readable: `chem_left_*`/`chem_right_*`
+channels (named for their stereo roles), `CO2Channel`/`CO2Config`
+(`sensors/co2_sensor.py`), `MOX_RED`/`MOX_NH3`/`MOX_OX`. Part numbers stay in
+docstrings and provenance records as facts about the modelled hardware.
+Verified zero stale identifiers repo-wide after the rename; full suite green.
+
+**2. Alignment with Chasing Ghosts (France et al., arXiv:2602.19577).** The
+repo already carried the paper's bout detection, accelerated
+chronoamperometry, OIO, and (since the third pass) stereo sampling. Three
+genuine gaps were implemented:
+
+- `DivergenceSignal` (Eqs. 5-7): dual-timescale divergence + signal line for
+  surge/cast switching, timestep-invariant form of the paper's
+  alpha=3, beta=8, rho=5.
+- `SourceDeclaration` (Eqs. 9-11): the sensor-only stopping rule. The paper's
+  worked example (k=20 -> point estimate 1.05m, CI upper ~1.2025m) is
+  reproduced numerically in tests. Operationalising it honestly required
+  three additions the paper leaves implicit: decimation to the paper's 1 Hz
+  sampling cadence (at 20 Hz control rate the k* threshold is otherwise
+  reached in one second of correlated noise -- observed), a plateau
+  requirement (still-climbing m means the source is still ahead), and an
+  at-the-maximum gate (remembering a strong whiff is not finding the source).
+- `StereoCastAndSurge`: steering from the inter-sensor ONSET LAG (Eqs. 3-4).
+  An amplitude-difference formulation was tried first and measurably failed
+  (0/5 success): per-die calibration spread (the simulator randomises R0 and
+  sensitivity per unit, as hardware varies) injects a constant steering bias
+  that swamps the true stereo signal at a 0.04 m baseline. The lag cue is
+  calibration-invariant -- which is precisely why the paper formulates it as
+  a time delay. The failure and the fix are both documented in the class.
+
+20-seed benchmark after the fix (die-scale 0.04 m / antenna-scale 0.30 m):
+mono 0.45/0.40 success, stereo 0.40/0.40 -- parity within noise, and the
+declaration rule produced ZERO false "source found" claims in 40 episodes.
+At these baselines and 20 Hz the lag frequently quantises to zero, so the
+stereo agent degrades gracefully to upwind cast-and-surge; that resolution
+limit is stated in the class docstring rather than papered over.
+
+Full verification after both changes: ruff clean, 77 tests passed, all 5
+examples run, build + twine PASS, isaaclab binding harness 7/7.

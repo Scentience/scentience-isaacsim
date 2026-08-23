@@ -3,6 +3,7 @@
 # not self-contained. setuptools does not pick up non-package directories on
 # its own.
 include LICENSE
+include NOTICE
 include CITATION.cff
 include CHANGELOG.md
 include CONTRIBUTING.md
