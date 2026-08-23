@@ -8,9 +8,9 @@ Last checked: 2026-08-23.
 
 | Tier | What | Status |
 |---|---|---|
-| 1. Static contract | Every symbol/signature/field this code assumes, checked against the real `isaaclab==2.3.2` wheel from PyPI. `scripts/check_isaaclab_contract.py`. | **22/22 PASS** (2026-08-23) |
-| 2. Executed binding | Our classes defined and configured by GENUINE isaaclab 2.3.2 code (real `SensorBase`, real `@configclass`, real `quat_apply`), with only the Omniverse kit runtime stubbed. `scripts/check_isaaclab_binding.py`. | **7/7 PASS** (2026-08-23) |
-| 3. Live install | `scripts/validate_install.py` inside a running Isaac Sim 5.1 + Isaac Lab 2.3.x. | **NOT RUN** -- needs RTX hardware |
+| 1. Static contract | Every symbol/signature/field this code assumes -- including the full API surface of `scripts/verify_in_isaac.py` -- checked against the real `isaaclab==2.3.2` wheel from PyPI. `scripts/check_isaaclab_contract.py`. | **34/34 PASS** (2026-08-23) |
+| 2. Executed binding | The WHOLE wrapper executed by GENUINE isaaclab 2.3.2 code: sensor + Cfg, mdp observation terms, the DirectRLEnv task cfg (constructs under the real `DirectRLEnvCfg`, 25 fields), and gym registration with resolving entry points; only the Omniverse kit runtime is stubbed. `scripts/check_isaaclab_binding.py`. | **10/10 PASS** (2026-08-23) |
+| 3. Live install | `scripts/validate_install.py` then `scripts/verify_in_isaac.py` inside a running Isaac Sim 5.1 + Isaac Lab 2.3.x (see `ISAAC_USAGE.md`). | **NOT RUN** -- needs RTX hardware |
 
 Tier 2 caught a real bug before any live install existed: `OlfactorySensorCfg`
 bound `class_type` by post-hoc class-attribute assignment, but `@configclass`

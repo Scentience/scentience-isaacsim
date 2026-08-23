@@ -14,6 +14,6 @@ dist/
 *SKILL.md
 notes/
 *.DS_Store
-*.runs/
+runs/
 *.ps1
 /_paper/

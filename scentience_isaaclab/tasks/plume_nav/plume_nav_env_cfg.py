@@ -34,5 +34,7 @@ try:
         success_radius = 1.0
         source_pos = (0.0, 0.0, 1.0)
 
-except ImportError:  # Isaac Lab absent: keep module importable for docs/tests
+except ImportError as _e:  # Isaac Lab absent: keep module importable for docs/tests
     PlumeNavEnvCfg = None
+    IMPORT_ERROR = _e
+    """Why the cfg is unavailable -- silent Nones cost debugging time."""

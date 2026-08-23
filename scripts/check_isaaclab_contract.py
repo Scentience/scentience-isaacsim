@@ -154,6 +154,31 @@ for mod, symbols in IMPORTS.items():
         check("from %s import %s" % (mod.replace("/__init__.py", "").replace("/", "."), s),
               s in exp or s in src)
 
+# --- H2: every isaaclab symbol scripts/verify_in_isaac.py touches ---
+VERIFY_SURFACE = {
+    "isaaclab/app/__init__.py": ["AppLauncher"],
+    "isaaclab/sim/__init__.py": ["SimulationContext", "SimulationCfg"],
+    "isaaclab/sim/spawners/from_files/__init__.py": ["GroundPlaneCfg"],
+    "isaaclab/sim/spawners/shapes/__init__.py": ["CuboidCfg"],
+    "isaaclab/sim/spawners/materials/__init__.py": ["RigidBodyMaterialCfg"],
+    "isaaclab/sim/schemas/__init__.py": ["RigidBodyPropertiesCfg", "MassPropertiesCfg",
+                                     "CollisionPropertiesCfg"],
+    "isaaclab/assets/__init__.py": ["RigidObjectCfg"],
+    "isaaclab/scene/__init__.py": ["InteractiveScene", "InteractiveSceneCfg"],
+}
+for mod, symbols in VERIFY_SURFACE.items():
+    p2 = find(mod)
+    if p2 is None:
+        for sym in symbols:
+            check("verify_in_isaac surface: %s in %s" % (sym, mod), False, "module missing")
+        continue
+    exp = module_exports(parse(p2))
+    src2 = read(p2)
+    for sym in symbols:
+        check("verify_in_isaac surface: %s.%s" %
+              (mod.replace("/__init__.py", "").replace("/", "."), sym),
+              sym in exp or sym in src2)
+
 # --- I: imu.py, the stated authoring reference ---
 imu_path = find("isaaclab/sensors/imu/imu.py")
 check("imu.py present (authoring reference)", imu_path is not None)

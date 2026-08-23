@@ -1,7 +1,10 @@
 """Execute scentience_isaaclab against GENUINE isaaclab 2.3.x code.
 
-Usage (in a venv with `pip install --no-deps isaaclab==2.3.2` plus torch,
-numpy<2, usd-core, toml, packaging, warp-lang, flatdict, prettytable):
+Usage (in a venv with `pip install --no-deps isaaclab==2.3.2` plus these
+pure-Python deps -- each one was discovered by running this harness and
+following the ModuleNotFoundErrors: torch, numpy<2, usd-core, toml,
+packaging, warp-lang, flatdict, prettytable, scipy, trimesh, pyyaml, h5py,
+matplotlib, opencv-python-headless, hidapi, gymnasium):
     python scripts/check_isaaclab_binding.py <repo-root>
 
 Tier between 'static source inspection' and 'live Isaac run': the Omniverse kit
@@ -35,9 +38,16 @@ sys.path.insert(0, REPO)
 # sys.path so `import isaaclab` resolves to the genuine library package and the
 # launcher shell is never executed.
 site = [p for p in sys.path if p.endswith("site-packages")][0]
-inner = os.path.join(site, "isaaclab", "source", "isaaclab")
+source_root = os.path.join(site, "isaaclab", "source")
+inner = os.path.join(source_root, "isaaclab")
 assert os.path.isdir(os.path.join(inner, "isaaclab", "sensors")), inner
-sys.path.insert(0, inner)
+# The wheel vendors sibling packages (isaaclab_contrib, isaaclab_assets, ...)
+# next to the core; isaaclab.scene imports isaaclab_contrib at module scope,
+# so every source/<pkg> root has to be importable.
+for d in sorted(os.listdir(source_root)):
+    p = os.path.join(source_root, d)
+    if os.path.isdir(p):
+        sys.path.insert(0, p)
 
 
 class _StubModule(types.ModuleType):
@@ -310,6 +320,38 @@ def c7():
     return "real quat_apply(identity) is identity (wxyz confirmed)"
 
 
+
+
+def c8():
+    import scentience_isaaclab.mdp as mdp
+    assert callable(mdp.gas_channels) and callable(mdp.wind_body)
+    return "mdp observation terms import under real isaaclab"
+
+
+def c9():
+    # The DirectRLEnv task cfg must construct under the real configclass
+    # machinery (this is where missing/incompatible fields explode).
+    from scentience_isaaclab.tasks.plume_nav.plume_nav_env_cfg import PlumeNavEnvCfg
+    cfg = PlumeNavEnvCfg()
+    d = cfg.to_dict()
+    assert "sim" in d and "scene" in d, sorted(d)[:8]
+    return "PlumeNavEnvCfg constructs; %d top-level fields" % len(d)
+
+
+def c10():
+    # Importing tasks must register the gym id, and its entry points must
+    # resolve to real modules (a typo here fails only at gym.make time).
+    import importlib
+    import gymnasium as gym
+    import scentience_isaaclab.tasks  # noqa: F401  (registration side effect)
+    spec = gym.spec("Isaac-PlumeNav-Scentience-v0")
+    for target in (spec.entry_point, spec.kwargs["env_cfg_entry_point"]):
+        mod, _, attr = target.partition(":")
+        obj = getattr(importlib.import_module(mod), attr.split(".")[0])
+        assert obj is not None
+    return "gym id registered; entry points resolve"
+
+
 check("import isaaclab (genuine 2.3.2)", c1)
 check("SensorBase API is 2.x (validate_install check 2)", c2)
 check("our classes define against real SensorBase", c3)
@@ -317,6 +359,9 @@ check("cfg constructs, class_type binds (validate_install check 4)", c4)
 check("our override signature matches base", c5)
 check("real configclass machinery round-trips our Cfg", c6)
 check("real math_utils.quat_apply sanity", c7)
+check("mdp observation terms import", c8)
+check("DirectRLEnv task cfg constructs (real configclass)", c9)
+check("gym task id registers and entry points resolve", c10)
 
 fails = sum(1 for _, ok in checks if not ok)
 print("\n%d/%d passed" % (len(checks) - fails, len(checks)))

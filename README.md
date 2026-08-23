@@ -41,8 +41,13 @@ python examples/01_minimal.py                                # smell in 5 lines
 python examples/02_walls_and_wind.py                         # plume vs a wall
 python examples/03_olfactory_inertial_odometry.py --platform quadruped   # or uav|biped|arm
 python examples/04_gym_baseline.py                           # the benchmark loop
-python examples/05_stereo_olfaction.py                       # two dies, one plume: lateralisation
+python examples/05_stereo_olfaction.py                       # two sensors, one plume: lateralisation
 ```
+
+Visual verification (`pip install "scentience-olfaction[viz]"`):
+`python scripts/plot_verification.py` renders ground truth vs the slow and
+fast device responses, and the stereo left/right cue, as PNGs.
+Something not working? See `docs/TROUBLESHOOTING.md`.
 
 ## The two numbers to know before using it
 

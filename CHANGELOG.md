@@ -2,6 +2,28 @@
 
 ## Unreleased (release-validation pass, 2026-08-21..23)
 
+* **Isaac Lab wrapper completed and wrapper-wide validated.** The
+  executed-binding harness now covers the WHOLE wrapper (10 checks): mdp
+  observation terms, the DirectRLEnv task cfg constructing under the real
+  `DirectRLEnvCfg`, and gym registration with resolving entry points --
+  which caught and fixed an empty `mdp/__init__.py` that made
+  `mdp.gas_channels` unreachable. Isaac-absent fallbacks now record their
+  `IMPORT_ERROR` instead of silently binding None. New:
+  `scripts/verify_in_isaac.py` (in-Isaac runtime verification: minimal
+  scene, channels vs ground truth, npz + plot; UNVALIDATED live, but its
+  full isaaclab API surface is contract-checked -- static checks now 34/34)
+  and `docs/ISAAC_USAGE.md` (install -> validate -> attach -> verify
+  walkthrough).
+
+* **Repo-hygiene parity with vendor sensor repos** (after review of ST's
+  `st-mems-isaac-sim2real`): `SECURITY.md` (private vulnerability reporting),
+  `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `BRANCHING.md` (release /
+  support / experimental branch policy for Isaac version targets),
+  `docs/TROUBLESHOOTING.md` (12 entries, each a failure mode actually
+  reproduced during validation), and `scripts/plot_verification.py` (+ `[viz]`
+  extra) producing clean-vs-device and stereo-cue verification figures, with
+  a test pinning that both render.
+
 * **Beginner-facing sensor naming.** Part numbers no longer appear in any
   identifier or data key a developer types: the two metal-oxide sensors are
   `chem_left_*` / `chem_right_*` (matching their stereo roles), the CO2

@@ -205,3 +205,74 @@ limit is stated in the class docstring rather than papered over.
 
 Full verification after both changes: ruff clean, 77 tests passed, all 5
 examples run, build + twine PASS, isaaclab binding harness 7/7.
+
+## Fifth pass (2026-08-23): benchmark against ST's Isaac sensor repository
+
+Reviewed `STMicroelectronics/st-mems-isaac-sim2real` (IMU sim2real extension
+for Isaac Sim) at the maintainer's request, as a credibility benchmark.
+
+**Where this repo was already ahead** (nothing adopted): CI with an enforced
+physics-realism gate (ST has no CI), test breadth (79 tests vs 2 files),
+provenance/evidence system, citation metadata (CITATION.cff + NOTICE; ST has
+neither), physics documentation depth, and a pip-installable pure-Python core
+(ST ships pre-compiled .so binaries, Ubuntu-only).
+
+**Adopted from ST's practice**:
+- Community-health files: `SECURITY.md`, `CODE_OF_CONDUCT.md`.
+- `BRANCHING.md`: their version-disciplined branch layout (stable /
+  support / experimental per Isaac target) fits the planned bi-weekly
+  cadence and the coming Isaac Lab 3.0 port.
+- `docs/TROUBLESHOOTING.md`: ST's README carries 11 concrete
+  symptom->fix entries; ours now carries 12, each one a failure mode
+  actually reproduced during these validation passes (including the
+  verified fact that the Warp twin runs CPU-only when no CUDA device
+  exists).
+- `scripts/plot_verification.py`: ST's strongest user-facing practice is
+  plots comparing clean vs realistic sensor output. Ours renders (a) ground
+  truth vs slow/fast device response -- the visual form of the README's
+  whiff-retention claim -- and (b) the stereo left/right cue. Figures
+  inspected and correct; a test pins that both render.
+
+**Deliberately NOT adopted, with reasons**:
+- Pre-compiled native backends: contradicts the "core imports with NumPy
+  only" invariant and Windows/macOS support; Warp covers the fast path.
+- In-Isaac menu/UI integration (Create -> Sensors): requires live-Isaac
+  iteration this hardware cannot do; the Kit extension scaffold and the
+  API-contract harness are the honest current ceiling. Roadmap item.
+- JSON sensor-profile files: our configs are typed dataclasses with
+  provenance attached; externalising them would detach constants from their
+  evidence records. May revisit for the `[yaml]` extra later.
+
+Final state after this pass: 78 tests passing, ruff clean, build + twine
+PASS, all examples + plot script run.
+
+## Sixth pass (2026-08-23): the Isaac Lab wrapper itself
+
+Request: everything needed for a VALID Isaac Lab wrapper, with ST-repo
+structural parity where it applies. Extended the executed-binding harness
+from the sensor alone to the whole wrapper -- mdp terms, the DirectRLEnv
+task cfg under the real `DirectRLEnvCfg`, and gym registration with
+entry-point resolution (10/10). That extension caught one real bug:
+`scentience_isaaclab/mdp/__init__.py` was EMPTY, so `mdp.gas_channels` --
+the exact path Isaac Lab observation configs reference terms by -- was
+unreachable. Fixed with explicit re-exports.
+
+Also hardened: the env/cfg modules' Isaac-absent fallbacks now record WHY
+they are unavailable (`IMPORT_ERROR`) instead of silently binding None --
+during harness work those silent Nones cost real debugging time, which is
+exactly what a user would hit.
+
+ST-parity artifacts added for the Isaac path:
+- `scripts/verify_in_isaac.py` -- the runtime companion to
+  `validate_install.py` (minimal scene, sensor on a rigid body, channels
+  logged vs ground truth, npz + plot), mirroring ST's verification-script +
+  plot workflow. It cannot be executed on this hardware and says so in its
+  banner; every isaaclab symbol it touches is contract-checked against the
+  real wheel (the "verify_in_isaac surface" checks; static total now 34/34)
+  and it compiles clean.
+- `docs/ISAAC_USAGE.md` -- ST-README-style walkthrough: install, validate
+  BEFORE use, attach to a robot, observation terms, RL task id, runtime
+  verification, and an explicit table of what is and is not validated today.
+
+Final: 78 tests, ruff clean, contract 34/34, binding 10/10, build + twine
+PASS.
