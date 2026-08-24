@@ -42,9 +42,9 @@ simulation_app = app_launcher.app
 
 import numpy as np  # noqa: E402
 import isaaclab.sim as sim_utils  # noqa: E402
-from isaaclab.assets import RigidObjectCfg  # noqa: E402
+from isaaclab.assets import AssetBaseCfg, RigidObjectCfg  # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
-from isaaclab.utils import configclass  # noqa: E402
+from isaaclab.utils.configclass import configclass  # noqa: E402
 
 from scentience_isaaclab.olfactory_sensor import OlfactorySensorCfg  # noqa: E402
 
@@ -53,7 +53,10 @@ from scentience_isaaclab.olfactory_sensor import OlfactorySensorCfg  # noqa: E40
 class VerifySceneCfg(InteractiveSceneCfg):
     """Ground + one cuboid 'robot base' + the olfactory sensor on it."""
 
-    ground = sim_utils.GroundPlaneCfg()
+    # IsaacSim 2.3.x
+    # ground = sim_utils.GroundPlaneCfg() 
+    # IsaacSim 3.0.x
+    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
 
     robot = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Robot",
@@ -82,10 +85,13 @@ def main() -> int:
 
     t, chans, gts = [], [], []
     dt = sim.get_physics_dt()
+    # Coolest variable ever:
+    sensor = scene["nose"]
     for i in range(args.steps):
+        # Note that the plume evolves on its own clock (see olfactory_sensor.py)
+        sensor._step_plume(dt)
         sim.step()
         scene.update(dt)
-        sensor = scene["nose"]
         t.append(i * dt)
         chans.append(sensor.data.channels[0].cpu().numpy().copy())
         gts.append(sensor.data.concentration_gt[0].cpu().numpy().copy())

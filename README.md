@@ -23,7 +23,7 @@ truth   = world.truth((5.0, 0.0, 1.0))        # ground truth, for debugging
 everything (Warp, torch, gymnasium, pytest). `pytest -m "not isaac"` runs the
 full physics validation on CPU, no Isaac, no GPU.
 
-## What is in the box
+## Features Included
 
 | | |
 |---|---|
@@ -49,7 +49,7 @@ Visual verification (`pip install "scentience-olfaction[viz]"`):
 fast device responses, and the stereo left/right cue, as PNGs.
 Something not working? See `docs/TROUBLESHOOTING.md`.
 
-## The two numbers to know before using it
+## Know these numbers before deploying:
 
 **1. Large-scale meander is not optional.** Blank-duration CV 1.7 +/- 0.4
 with it (range 1.4-2.4 over 5 seeds), 0.95 +/- 0.02 without (600 s @ 100 Hz,
@@ -63,6 +63,13 @@ a packaged MOX (tau_fall 12 s) retains **19%** of whiff events; a fast sensor
 (46 ms, time constants per Dennler et al., Sci. Adv. 2024) retains **97%**.
 State your `sensor_profile` in every result.
 
+**3. Sensitivity coefficients.** 
+Sensitivity coefficients ship as DIGITIZED/SYNTHESIZED evidence (datasheets
+publish graphs, not tables). Plumes
+are implemented from Farrell's published equations since those from Gaden, et al.
+have license restrictions. See
+`docs/LICENSES_AND_PROVENANCE.md`.
+
 ## Isaac Sim / Isaac Lab status
 
 The Isaac Lab sensor (`scentience_isaaclab/`) targets Isaac Lab 2.3.x /
@@ -74,14 +81,6 @@ record in `docs/ISAAC_COMPATIBILITY.md`) -- but has NOT yet been executed in
 a live Isaac Sim install. Run `scripts/validate_install.py` inside Isaac and
 paste its output into `docs/ISAAC_COMPATIBILITY.md` before relying on it.
 Until then, the supported paths are standalone Python and Gymnasium.
-
-## Honesty policy
-
-Sensitivity coefficients ship as DIGITIZED/SYNTHESIZED evidence (datasheets
-publish graphs, not tables) and the package says so at runtime. Buoyancy is
-off rather than wrong. GADEN (LGPL) is cited, never transcribed -- the plume
-is implemented from Farrell's published equations. See
-`docs/LICENSES_AND_PROVENANCE.md`.
 
 ## Cite
 

@@ -276,3 +276,44 @@ ST-parity artifacts added for the Isaac path:
 
 Final: 78 tests, ruff clean, contract 34/34, binding 10/10, build + twine
 PASS.
+
+## Seventh pass (2026-08-23): running the wrapper without a GPU
+
+Question from the maintainer: can Isaac Lab run without a GPU, and can the
+wrapper be tested on the RT-core-less development machine?
+
+Answer, straight: Isaac Lab 2.3.x live -- no. It requires Isaac Sim, whose
+renderer requires RT cores; NVIDIA's own compatibility checker refuses a
+device on this machine (first pass). Isaac Lab 3.0's kit-less mode may
+change that eventually, but this release targets 2.3.x, which refuses the
+3.0 API by design.
+
+What WAS made to run locally: the wrapper's complete runtime lifecycle.
+`scripts/demo_isaaclab_sensor_local.py` drives the sensor through real
+`SensorBase` construction, `_initialize_impl`, per-step `update()` with the
+genuine lazy-evaluation timestamp machinery, `data` reads, and `reset()`,
+with exactly three declared fakes (kit runtime stubs; a
+`SimulationContext.instance()` namespace; a scripted PhysX-view trajectory).
+`scripts/setup_isaaclab_local.py` builds the `.venv-isaaclab/` environment
+for it in one command; the kit stubs moved to a shared
+`scripts/isaaclab_kit_stubs.py`.
+
+The demo's first run found a RELEASE-CRITICAL bug the 78-test CPU suite
+structurally could not see: `transport/filament_warp.py` did
+`import warp.torch` inside `set_probes_torch` / `sample_torch` /
+`wind_torch` -- the torch-interop methods only Isaac-path code calls. Warp
+removed the `warp.torch` module (interop is lazy via top-level
+`wp.from_torch`/`wp.to_torch`); every live-Isaac `update()` would have
+raised ModuleNotFoundError on first sensor read. Fixed by deleting the dead
+imports; warp parity tests still 4/4; matched-device torch interop verified
+on cpu.
+
+Demo output on this machine (GTX 1650, no RT cores, torch CPU): robot flies
+upwind from x=12 m; ground truth rises from 0 to ~20 ppm approaching the
+source (peak 104.5 ppm sampled), chem_left_red drops 0.94 -> 0.17, then
+clean-air recovery after overflying -- the sensor lifecycle behaving
+end-to-end. Exit criteria enforced in-script (nonzero ground truth AND
+device response, else exit 1).
+
+Also: a device-mismatch pitfall (CPU-only torch + Warp defaulting to CUDA)
+was reproduced and documented as TROUBLESHOOTING entry 13.

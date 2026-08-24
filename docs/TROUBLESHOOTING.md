@@ -80,6 +80,14 @@ that and run fine on such machines. See `ISAAC_COMPATIBILITY.md`.
 call the interpreter directly: `.\.venv\Scripts\python.exe ...` (all repo
 docs use the direct form).
 
+**13. `AssertionError: Torch not compiled with CUDA enabled` from
+`sample_torch()` / `wind_torch()`**
+Device mismatch: your torch build is CPU-only but Warp put the plume on
+`cuda:0` (its default when a GPU exists). Construct the plume with an
+explicit matching device -- `WarpFilamentPlume(..., device="cpu")` -- as the
+Isaac Lab sensor does (`device=str(self._device)`). Reproduced during
+release validation with a CPU-only torch on a CUDA-capable machine.
+
 ---
 
 Still stuck? Open an issue with the output of:

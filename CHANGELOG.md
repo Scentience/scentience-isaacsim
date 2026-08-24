@@ -2,6 +2,17 @@
 
 ## Unreleased (release-validation pass, 2026-08-21..23)
 
+* **Test the Isaac Lab wrapper with no GPU.** `scripts/setup_isaaclab_local.py`
+  builds `.venv-isaaclab/` (genuine `isaaclab==2.3.2` wheel + its pure-Python
+  import graph), and `scripts/demo_isaaclab_sensor_local.py` runs the
+  sensor's FULL Isaac Lab lifecycle (real SensorBase init/update/lazy-eval/
+  reset) with a scripted trajectory standing in for PhysX. Doing so found and
+  fixed a fatal `import warp.torch` in `transport/filament_warp.py` -- warp
+  >= 1.6 removed that module; interop is lazy via top-level
+  `wp.from_torch`/`wp.to_torch`. The CPU suite never touches that path;
+  Isaac would have hit it on first `update()`. Kit stubs are now shared in
+  `scripts/isaaclab_kit_stubs.py`.
+
 * **Isaac Lab wrapper completed and wrapper-wide validated.** The
   executed-binding harness now covers the WHOLE wrapper (10 checks): mdp
   observation terms, the DirectRLEnv task cfg constructing under the real

@@ -92,6 +92,27 @@ paste the console output into `ISAAC_COMPATIBILITY.md` (and open a PR or
 issue) -- that single paste moves the integration from "contract-validated"
 to "live-validated" for everyone.
 
+## Testing the wrapper on a machine with NO GPU
+
+Isaac Lab itself cannot run without Isaac Sim (whose renderer needs RT
+cores). The wrapper's runtime, however, can -- driven by the genuine
+isaaclab wheel with only the kit runtime stubbed:
+
+```bash
+python scripts/setup_isaaclab_local.py          # one-time: builds .venv-isaaclab/
+.venv-isaaclab/Scripts/python scripts/check_isaaclab_binding.py .        # 10 checks
+.venv-isaaclab/Scripts/python scripts/demo_isaaclab_sensor_local.py      # fly through a plume
+```
+
+The demo executes the sensor's full Isaac Lab lifecycle -- real
+`SensorBase` construction, `_initialize_impl`, `update()` with the real
+lazy-evaluation machinery, `data` reads, `reset()` -- while a scripted
+"robot" flies upwind through the plume. Exactly three things are faked, and
+the script lists them. Running it on this project's own development laptop
+(GTX 1650, no RT cores) produces a clean approach/response/overshoot trace
+and exercised the very code path a live install would: it is how a fatal
+`import warp.torch` incompatibility was found before any user hit it.
+
 ## What is validated today, without a live install
 
 | Layer | Evidence |

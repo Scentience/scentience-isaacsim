@@ -6,6 +6,7 @@
 build/
 dist/
 .venv/
+.venv-isaaclab/
 *.npz
 # NOTE: this was `*_*.md`, which silently ignored EVERY markdown file with an
 # underscore -- including docs/LICENSES_AND_PROVENANCE.md and
