@@ -44,5 +44,7 @@ try:
             timeout = self.episode_length_buf >= self.max_episode_length - 1
             return reached, timeout
 
-except ImportError:
+except ImportError as _e:
     PlumeNavRLEnv = None
+    IMPORT_ERROR = _e
+    """Why the env is unavailable -- silent Nones cost debugging time."""

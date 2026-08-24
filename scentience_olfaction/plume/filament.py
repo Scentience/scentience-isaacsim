@@ -15,7 +15,8 @@ Two deliberate corrections relative to common practice:
      kick scaled by dt makes turbulent diffusivity depend on the timestep.
   2. A shared large-scale bearing meander (one OU process, advanced once per
      step) produces the heavy-tailed blank durations real plumes have.
-     Ablating it drops blank-duration CV from 2.31 to 0.96 -- see
+     Ablating it roughly halves blank-duration CV (1.7 +/- 0.4 -> 0.95
+     +/- 0.02 across seeds; docs/CHEMICAL_MODEL.md) -- see
      tests/test_plume_gate.py.
 
 Units are SI (m, s, kg); concentrations reported in ppm by volume.
@@ -26,7 +27,7 @@ the fast path and tests/test_warp_parity.py keeps them honest.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 

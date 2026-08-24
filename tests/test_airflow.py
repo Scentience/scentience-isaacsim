@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
 from scentience_olfaction.airflow.fields import (GridAirflow, UniformAirflow,
                                                  potential_flow)
-from scentience_olfaction.geometry.occupancy import OccupancyGrid, OBSTACLE
+from scentience_olfaction.geometry.occupancy import OccupancyGrid
 
 
 def test_grid_trilinear_reproduces_linear_field():

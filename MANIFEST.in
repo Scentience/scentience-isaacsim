@@ -1,0 +1,18 @@
+# The README tells users to run `python examples/01_minimal.py` and
+# `scripts/validate_physics.py`, so a source distribution that omits them is
+# not self-contained. setuptools does not pick up non-package directories on
+# its own.
+include LICENSE
+include NOTICE
+include CITATION.cff
+include CHANGELOG.md
+include CONTRIBUTING.md
+include SECURITY.md
+include CODE_OF_CONDUCT.md
+include BRANCHING.md
+recursive-include examples *.py
+recursive-include scripts *.py
+recursive-include docs *.md
+recursive-include isaac_extension *.py *.toml *.md *.png
+global-exclude *.pyc
+global-exclude __pycache__/*

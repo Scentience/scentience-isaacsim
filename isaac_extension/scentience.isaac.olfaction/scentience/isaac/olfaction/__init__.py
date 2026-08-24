@@ -1,1 +1,1 @@
-from .extension import *\n
+from .extension import *

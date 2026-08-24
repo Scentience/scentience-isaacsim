@@ -1,6 +1,5 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import pytest
 from scentience_olfaction.provenance import (Evidence, ProvenanceRegistry,
                                              coeff, synthesized_from)
 

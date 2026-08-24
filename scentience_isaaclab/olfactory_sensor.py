@@ -34,7 +34,7 @@ from dataclasses import dataclass
 import torch
 
 try:  # Isaac Lab is absent in CI; the physics core must stay importable.
-    import isaaclab.sim as sim_utils
+    import isaaclab.sim as sim_utils  # noqa: F401  (availability probe)
     import isaaclab.utils.math as math_utils
     from isaaclab.sensors import SensorBase, SensorBaseCfg
     from isaaclab.utils import configclass
@@ -74,37 +74,6 @@ class OlfactorySensorData:
 
 
 if _HAS_ISAAC:
-
-    @configclass
-    class OlfactorySensorCfg(SensorBaseCfg):
-        class_type: type = None  # set below, after the class exists
-
-        @configclass
-        class OffsetCfg:
-            pos: tuple[float, float, float] = (0.0, 0.0, 0.0)
-            rot: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
-
-        offset: OffsetCfg = OffsetCfg()
-
-        species: tuple[str, ...] = ("ethanol",)
-        device_profile: str = "scentience_v1"
-        sensor_profile: str = "packaged_slow"
-        """`packaged_slow` or `fast_modulated`. This choice changes how much
-        plume structure survives into the observation by roughly 5x. State it
-        in every result."""
-
-        channel_names: tuple[str, ...] = (
-            "mics1_red", "mics1_nh3", "mics1_ox",
-            "mics2_red", "mics2_nh3", "mics2_ox",
-            "co2_ppm", "temperature_c", "relative_humidity", "ec1", "ec2",
-        )
-
-        randomize_per_episode: bool = True
-        """Resample R0, (A, beta), tau, drift per env on reset. Leaving this
-        off produces virtual units far more consistent than any two real ones,
-        which is the fastest way to train a policy that cannot transfer."""
-
-        expose_ground_truth: bool = False
 
     class OlfactorySensor(SensorBase):
         """Vectorised olfactory sensor. One plume instance per environment."""
@@ -150,7 +119,7 @@ if _HAS_ISAAC:
             )
 
             c, s = len(self.cfg.channel_names), len(self.cfg.species)
-            z = lambda k: torch.zeros(n, k, device=self._device)
+            z = lambda k: torch.zeros(n, k, device=self._device)  # noqa: E731
             self._data.pos_w, self._data.channels = z(3), z(c)
             self._data.concentration_gt, self._data.wind_w = z(s), z(3)
 
@@ -193,4 +162,33 @@ if _HAS_ISAAC:
                 # trains against the same virtual device.
                 self._device_model.reset(env_ids, randomize=self.cfg.randomize_per_episode)
 
-    OlfactorySensorCfg.class_type = OlfactorySensor
+    @configclass
+    class OlfactorySensorCfg(SensorBaseCfg):
+        class_type: type = OlfactorySensor
+
+        @configclass
+        class OffsetCfg:
+            pos: tuple[float, float, float] = (0.0, 0.0, 0.0)
+            rot: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
+
+        offset: OffsetCfg = OffsetCfg()
+
+        species: tuple[str, ...] = ("ethanol",)
+        device_profile: str = "scentience_v1"
+        sensor_profile: str = "packaged_slow"
+        """`packaged_slow` or `fast_modulated`. This choice changes how much
+        plume structure survives into the observation by roughly 5x. State it
+        in every result."""
+
+        channel_names: tuple[str, ...] = (
+            "chem_left_red", "chem_left_nh3", "chem_left_ox",
+            "chem_right_red", "chem_right_nh3", "chem_right_ox",
+            "co2_ppm", "temperature_c", "relative_humidity", "ec1", "ec2",
+        )
+
+        randomize_per_episode: bool = True
+        """Resample R0, (A, beta), tau, drift per env on reset. Leaving this
+        off produces virtual units far more consistent than any two real ones,
+        which is the fastest way to train a policy that cannot transfer."""
+
+        expose_ground_truth: bool = False

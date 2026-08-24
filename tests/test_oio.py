@@ -8,7 +8,7 @@ from scentience_olfaction.oio.oio import (BoutDetector, BoutDetectorConfig,
 def test_bout_detector_counts_pulses():
     det = BoutDetector(BoutDetectorConfig(noise_sigma=0.01, tau_fast_s=0.2,
                                           tau_slow_s=10.0))
-    dt, n = 0.01, 0
+    dt = 0.01
     for i in range(6000):   # 60 s, 1 s pulses every 10 s
         x = 1.0 if (i // 100) % 10 == 0 else 0.0
         det.step(x, dt)

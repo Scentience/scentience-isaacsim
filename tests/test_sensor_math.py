@@ -6,12 +6,11 @@ import sys, os, math
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dataclasses import replace
 import numpy as np
-import pytest
-from scentience_olfaction.sensors.mox import (MICS6814_OX, MICS6814_RED,
+from scentience_olfaction.sensors.mox import (MOX_OX, MOX_RED,
                                               MoxChannel, absolute_humidity)
 from scentience_olfaction.sensors.electrochemical import EC_CO, ECChannel
 from scentience_olfaction.sensors.pid import PIDChannel, PIDConfig
-from scentience_olfaction.sensors.scd4x import SCD4xChannel, SCD4xConfig
+from scentience_olfaction.sensors.co2_sensor import CO2Channel, CO2Config
 
 
 def quiet(cfg, **kw):
@@ -29,18 +28,18 @@ def fit_tau(y, dt):
 
 
 def test_mox_steady_state_closed_form():
-    ch = MoxChannel(quiet(MICS6814_RED), np.random.default_rng(0), randomize=False)
+    ch = MoxChannel(quiet(MOX_RED), np.random.default_rng(0), randomize=False)
     C, T, RH = 80.0, 20.0, 50.0
     for _ in range(3000):
         out = ch.step({"ethanol": C}, 0.1, temp_c=T, rh_pct=RH)
-    A, B = MICS6814_RED.sensitivity["ethanol"]
+    A, B = MOX_RED.sensitivity["ethanol"]
     pred = A * C ** (-B) * math.exp(
-        MICS6814_RED.humidity_coeff * absolute_humidity(T, RH))
+        MOX_RED.humidity_coeff * absolute_humidity(T, RH))
     assert abs(out["ratio_measured"] - pred) < 2e-3
 
 
 def test_mox_fitted_tau_matches_config():
-    cfg = quiet(MICS6814_RED, tau_rise_s=2.0, tau_fall_s=8.0)
+    cfg = quiet(MOX_RED, tau_rise_s=2.0, tau_fall_s=8.0)
     ch = MoxChannel(cfg, np.random.default_rng(0), randomize=False)
     dt = 0.02
     rise = [ch.step({"ethanol": 100.0}, dt)["ratio_measured"] for _ in range(2000)]
@@ -50,7 +49,7 @@ def test_mox_fitted_tau_matches_config():
 
 
 def test_mox_flow_correction_exponent():
-    cfg = quiet(MICS6814_RED, tau_rise_s=2.0, tau_fall_s=8.0)
+    cfg = quiet(MOX_RED, tau_rise_s=2.0, tau_fall_s=8.0)
     ch = MoxChannel(cfg, np.random.default_rng(0), randomize=False)
     dt = 0.02
     r1 = [ch.step({"ethanol": 100.0}, dt, flow_mps=0.1)["ratio_measured"]
@@ -63,14 +62,14 @@ def test_mox_flow_correction_exponent():
 
 
 def test_oxidizing_gas_raises_resistance():
-    ch = MoxChannel(quiet(MICS6814_OX), np.random.default_rng(0), randomize=False)
+    ch = MoxChannel(quiet(MOX_OX), np.random.default_rng(0), randomize=False)
     for _ in range(3000):
         out = ch.step({"nitrogen_dioxide": 2.0}, 0.1)
     assert out["ratio_measured"] > 3.0
 
 
 def test_adc_quantisation_exact_and_monotone():
-    cfg = replace(quiet(MICS6814_RED), adc_bits=12)
+    cfg = replace(quiet(MOX_RED), adc_bits=12)
     ch = MoxChannel(cfg, np.random.default_rng(0), randomize=False)
     q = 3.3 / 2 ** 12
     prev = -1
@@ -94,7 +93,7 @@ def test_ec_span_tempco_exact():
 
 
 def test_scd4x_t63_and_hold_cadence():
-    co2 = SCD4xChannel(SCD4xConfig(), np.random.default_rng(0))
+    co2 = CO2Channel(CO2Config(), np.random.default_rng(0))
     vals = []
     for _ in range(1200):
         vals.append(co2.step(500.0, 0.1)["co2_ppm"])

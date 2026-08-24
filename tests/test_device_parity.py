@@ -11,12 +11,12 @@ def test_numpy_torch_mox_step_response_agree():
     the same primary-channel step response when noise and unit variation are
     disabled. Guards against the two implementations drifting apart."""
     from dataclasses import replace
-    from scentience_olfaction.sensors.mox import MICS6814_RED, MoxChannel
+    from scentience_olfaction.sensors.mox import MOX_RED, MoxChannel
     from scentience_olfaction.sensors.scentience_v1 import (DeviceConfig,
                                                             ScentienceV1Device)
     dt, c_ppm, n = 0.1, 100.0, 400
 
-    np_cfg = replace(MICS6814_RED, white_noise_frac=0.0, flicker_noise_frac=0.0,
+    np_cfg = replace(MOX_RED, white_noise_frac=0.0, flicker_noise_frac=0.0,
                      drift_sigma_per_sqrt_s=0.0, adc_bits=24, humidity_coeff=0.0)
     ch = MoxChannel(np_cfg, np.random.default_rng(0), randomize=False)
     np_tr = [ch.step({"ethanol": c_ppm}, dt, rh_pct=50.0)["ratio_measured"]

@@ -22,7 +22,7 @@ table itself and test that ethanol at 10.6 eV uses 3.1.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 
