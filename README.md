@@ -49,7 +49,7 @@ Visual verification (`pip install "scentience-olfaction[viz]"`):
 fast device responses, and the stereo left/right cue, as PNGs.
 Something not working? See `docs/TROUBLESHOOTING.md`.
 
-## The two numbers to know before using it
+## Know these numbers before deploying:
 
 **1. Large-scale meander is not optional.** Blank-duration CV 1.7 +/- 0.4
 with it (range 1.4-2.4 over 5 seeds), 0.95 +/- 0.02 without (600 s @ 100 Hz,
