@@ -27,11 +27,14 @@ def _c2():
     from isaaclab.sensors import SensorBase
     sig = inspect.signature(SensorBase._update_buffers_impl)
     p = list(sig.parameters)[1]
-    if p == "env_ids":
-        return "Isaac Lab 2.x API (env_ids) -- matches this code"
+    if p == "env_mask":
+        return "Isaac Lab 3.x API (env_mask): matches this code"
+    # if p == "env_ids":
+    #     return "Isaac Lab 2.x API (env_ids): matches this code"
     raise AssertionError(
-        f"_update_buffers_impl takes {p!r}, not 'env_ids'. This is the 3.0 "
-        "env_mask API; port olfactory_sensor.py before proceeding.")
+        f"_update_buffers_impl takes {p!r}, not 'env_ids' or. This is the 2.x "
+        "env_ids API. olfactory_sensor.py has been ported to 3.0 and no longer "
+        "matches. Either pin isaaclab to 2.3.x or revert the port.")
 
 
 @check("warp available and reports a CUDA device")

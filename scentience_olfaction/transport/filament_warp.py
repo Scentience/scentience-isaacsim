@@ -255,7 +255,6 @@ class WarpFilamentPlume:
     # Zero-copy on CUDA. On CPU Warp falls back to a copy, which is fine --
     # the CPU path exists for CI parity, not for throughput.
     def set_probes_torch(self, p) -> None:
-        import warp.torch  # noqa: F401
         wp.copy(self.probes, wp.from_torch(p.contiguous(), dtype=wp.vec3))
 
     def sample_torch(self):
@@ -265,7 +264,6 @@ class WarpFilamentPlume:
         until the per-species pool lands. Returning (n,) here would force a
         breaking change on every caller later.
         """
-        import warp.torch  # noqa: F401
         wp.launch(
             k_sample, dim=self.n_envs,
             inputs=[self.pos, self.sigma, self.alive, self.probes, self.out,
@@ -277,7 +275,6 @@ class WarpFilamentPlume:
 
     def wind_torch(self):
         """Simulated anemometer: (n_envs, 3) local wind."""
-        import warp.torch  # noqa: F401
         return wp.to_torch(self.wind)
 
     def reset(self, env_ids=None) -> None:
