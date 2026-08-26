@@ -18,3 +18,4 @@ notes/
 runs/
 *.ps1
 /_paper/
+./docs/*
