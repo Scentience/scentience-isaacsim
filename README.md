@@ -1,14 +1,18 @@
-# scentience-olfaction
+# Olfaction Simulation for Robotics by Scentience
 
-**Olfactory sensing for robotics simulation.** Chemical plume transport and
+This repository is a growing effort to give proper simulation tools for 
+chemical sensing, plume tracking, and olfactory navigation for robotics.
+It contains chemical plume models and
 virtual Scentience olfactory sensors for NVIDIA Isaac Sim / Isaac Lab,
-Gymnasium, and standalone Python. To our knowledge, the first olfactory and
+Gymnasium, and standalone Python. 
+To our knowledge, this is the first olfactory and
 chemical sensing package for Isaac Sim.
 
-By [Scentience](https://scentience.ai) -- sensors and AI for machine
-olfaction.
+Developed by Kordel France and [Scentience](https://scentience.ai).
 
-## Five lines to smell
+## Quick Start
+Only 5 lines to smell:
+
 
 ```python
 from scentience_olfaction import OlfactionWorld
@@ -51,6 +55,11 @@ Something not working? See `docs/TROUBLESHOOTING.md`.
 
 ## Know these numbers before deploying:
 
+One can consider these as tuning parameters for the package.
+We have done our best to provide reasonable default values for generalized
+simulation scenarios. However, for optimal performance, these values should
+be tuned to the specific application.
+
 **1. Large-scale meander is not optional.** Blank-duration CV 1.7 +/- 0.4
 with it (range 1.4-2.4 over 5 seeds), 0.95 +/- 0.02 without (600 s @ 100 Hz,
 8 m downwind). CV < 1 means exponential blanks: no search problem, and
@@ -89,4 +98,20 @@ See `CITATION.cff`. Related Scentience research: olfaction standardization
 accelerated chronoamperometry (arXiv:2506.04540), Chasing Ghosts
 (arXiv:2602.19577).
 
-Apache-2.0.
+## License
+
+Please see file LICENSE for a full breakdown of the license for this software package.
+This software includes a number of subcomponents with separate
+copyright notices and license terms - please see the file ACKNOWLEDGEMENTS.
+
+Some components of this package are built off open-sourced Apache 2.0 and/or MIT
+licensed software and research.
+We do our best to credit the original authors for any work off which this package
+is built, but make no claims that this is entirely thorough due to the difficulty
+in finding origin of certain aspects of olfaction such as certain plume filament 
+algorithms.
+By using this package, you acknowledge this risk accordingly.
+
+The Scentience sensor model copyright and license terms can be
+found in ./sensors/LICENSE_MODEL file.
+
