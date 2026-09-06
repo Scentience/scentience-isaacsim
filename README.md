@@ -1,6 +1,11 @@
 # Robotics Olfaction Package for Nvidia IsaacSim and IsaacLab
 
-[![](.\media\scentience_robot.png)](.\media\scentience_robot.png)
+[![Paper](https://img.shields.io/badge/Research-Paper-red)](https://arxiv.org/abs/2602.19577)
+[![Colab](https://img.shields.io/badge/Run%20in-Colab-yellow?logo=google-colab)](https://colab.research.google.com/drive/1H5OSeO43YfhAT9MqcJKaaSknFYhjimvg?usp=sharing)
+[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/kordelfrance/Olfaction-Vision-Language-Embeddings)
+
+
+[![](./media/scentience_robot.MP4)](./media/scentience_robot.MP4)
 
 
 This repository is a growing effort to give proper simulation tools for 
