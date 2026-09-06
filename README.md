@@ -5,7 +5,7 @@
 [![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/kordelfrance/Olfaction-Vision-Language-Embeddings)
 
 
-[![](./media/scentience_robot.MP4)](./media/scentience_robot.MP4)
+[![](scentience-isaacsim/media/scentience_robot.MP4)](scentience-isaacsim/media/scentience_robot.MP4)
 
 
 This repository is a growing effort to give proper simulation tools for 
