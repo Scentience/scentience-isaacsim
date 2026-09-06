@@ -1,4 +1,7 @@
-# Olfaction Simulation for Robotics by Scentience
+# Robotics Olfaction Package for Nvidia IsaacSim and IsaacLab
+
+[![](.\media\scentience_robot.png)](.\media\scentience_robot.png)
+
 
 This repository is a growing effort to give proper simulation tools for 
 chemical sensing, plume tracking, and olfactory navigation for robotics.
@@ -8,7 +11,7 @@ Gymnasium, and standalone Python.
 To our knowledge, this is the first olfactory and
 chemical sensing package for Isaac Sim.
 
-Developed by Kordel France and [Scentience](https://scentience.ai).
+Developed by Kordel France.
 
 ## Quick Start
 Only 5 lines to smell:
