@@ -1,4 +1,14 @@
-# Olfaction Simulation for Robotics by Scentience
+# Robotics Olfaction Package for Nvidia Isaac Sim and Isaac Lab
+
+[![Paper](https://img.shields.io/badge/arXiv-2602.19577-b31b1b?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2602.19577)
+
+[![Isaac Sim](https://img.shields.io/badge/Isaac%20Sim-6.x-76B900?logo=nvidia&logoColor=white)](https://github.com/isaac-sim/IsaacSim)
+[![Isaac Lab](https://img.shields.io/badge/Isaac%20Lab-3.x-76B900?logo=nvidia&logoColor=white)](https://github.com/isaac-sim/IsaacLab)
+
+[![Colab](https://img.shields.io/badge/Run%20in-Colab-yellow?logo=google-colab)](https://colab.research.google.com/drive/1H5OSeO43YfhAT9MqcJKaaSknFYhjimvg?usp=sharing)
+[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/kordelfrance/Olfaction-Vision-Language-Embeddings)
+
+[![Scentience robot olfaction demo](media/scentience_robot.gif)](media/scentience_robot.MP4)
 
 This repository is a growing effort to give proper simulation tools for 
 chemical sensing, plume tracking, and olfactory navigation for robotics.
@@ -8,7 +18,7 @@ Gymnasium, and standalone Python.
 To our knowledge, this is the first olfactory and
 chemical sensing package for Isaac Sim.
 
-Developed by Kordel France and [Scentience](https://scentience.ai).
+Developed by Kordel France.
 
 ## Quick Start
 Only 5 lines to smell:
@@ -81,15 +91,15 @@ have license restrictions. See
 
 ## Isaac Sim / Isaac Lab status
 
-The Isaac Lab sensor (`scentience_isaaclab/`) targets Isaac Lab 2.3.x /
-Isaac Sim 5.1. It is **API-contract validated** against the real
-`isaaclab==2.3.2` wheel -- 22 static checks plus our classes executed by
-genuine isaaclab code with the kit runtime stubbed
-(`scripts/check_isaaclab_contract.py`, `scripts/check_isaaclab_binding.py`;
-record in `docs/ISAAC_COMPATIBILITY.md`) -- but has NOT yet been executed in
-a live Isaac Sim install. Run `scripts/validate_install.py` inside Isaac and
-paste its output into `docs/ISAAC_COMPATIBILITY.md` before relying on it.
-Until then, the supported paths are standalone Python and Gymnasium.
+The Isaac Lab sensor (`scentience_isaaclab/`) targets **Isaac Lab 3.x /
+Isaac Sim 6.x** (the `env_mask` sensor API) and has been **executed and
+verified in a live Isaac Sim install** by the maintainer (2026-09). Run
+`scripts/validate_install.py` inside Isaac to confirm your own install --
+its checks now expect the 3.x API -- and see `docs/ISAAC_COMPATIBILITY.md`
+for the full validation record. Users pinned to Isaac Lab 2.3.x / Isaac
+Sim 5.1 should use the last 2.3.x-era release (see `BRANCHING.md`); the
+offline validation harnesses (`scripts/check_isaaclab_*.py`) still target
+the 2.3.2 wheel and are pending a re-point to a 3.x wheel.
 
 ## Cite
 
