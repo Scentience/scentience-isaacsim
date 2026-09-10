@@ -28,6 +28,16 @@ These are an observed environment, not new minimum requirements or a lockfile.
 The CI configuration also targets Python 3.10 and 3.12; those jobs have not been
 run locally as part of this record.
 
+### Scentience SDK integration follow-up
+
+The optional `bridge` extra installed successfully with Scentience 2.2.2 and
+Bleak 3.0.2. The fast non-Isaac regression run passed **342 tests**, with
+14 CUDA-dependent skips and five slow tests excluded. The 14 focused BLE/SDK
+tests passed, including the actual SDK's public sampling/JSON/logging paths
+with a fake GATT transport and its local OVL mapper. No live hardware or
+hosted inference was used. The offline SDK example, lint and package builds
+also passed. See [SDK integration](SDK_INTEGRATION.md).
+
 ## Reproduce
 
 ```bash

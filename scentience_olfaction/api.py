@@ -153,6 +153,35 @@ class OlfactionWorld:
     def wind_at(self, position) -> np.ndarray:
         return self.plume.airflow.velocity(_position(position)[None])[0]
 
+    def read_ble(self, position, dt: float | None = None, name: str = "nose", *,
+                 uid: str = "SIM001", timestamp: str | None = None,
+                 pressure_hpa: float = 1010.0, side: str = "left",
+                 include_sim_metadata: bool = True, state: DeviceState | None = None,
+                 heading: float | None = None, orientation_wxyz=None) -> dict:
+        """Advance one Scentience sensor tick and return an SDK-shaped reading.
+
+        Default timestamps use plume time since 1970-01-01 UTC, preserving
+        deterministic subsecond timing. Supply a timestamp to align an external
+        clock. Use bridge.ble_frame on an existing reading to avoid a new tick.
+        """
+        from datetime import datetime, timedelta, timezone
+        from .bridge.ble_schema import ble_frame, _validate_frame_options
+
+        if self.device_profile != "scentience_v1":
+            raise ValueError("read_ble requires device_profile='scentience_v1'")
+        _validate_frame_options(uid, timestamp, pressure_hpa, side, include_sim_metadata)
+        if timestamp is None:
+            stamp = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=self.plume.t)
+            timestamp = stamp.isoformat(timespec="microseconds").replace("+00:00", "Z")
+        reading = self.read(position, dt=dt, name=name, state=state,
+                            heading=heading, orientation_wxyz=orientation_wxyz)
+        frame = ble_frame(reading, uid=uid, timestamp=timestamp, pressure_hpa=pressure_hpa,
+                          device_config=self._device(name).configuration, side=side,
+                          include_sim_metadata=include_sim_metadata)
+        if include_sim_metadata:
+            frame["_sim_time_s"] = float(self.plume.t)
+        return frame
+
     def sensor_diagnostics(self, name: str = "nose") -> dict:
         """Snapshot of the most recent instrument diagnostics, without a tick."""
         return self._device(name).last_reading

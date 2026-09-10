@@ -19,6 +19,8 @@ Research Model License Agreement.
 | Dependency | License | Use |
 |---|---|---|
 | [NumPy](https://github.com/numpy/numpy/blob/main/LICENSE.txt) | BSD-3-Clause | Only mandatory dependency |
+| [Scentience Python SDK](https://pypi.org/project/scentience/2.2.2/) | Apache-2.0 | Optional `bridge` extra; SDK reading and OVL mapping interoperability |
+| [Bleak](https://github.com/hbldh/bleak/blob/develop/LICENSE) | MIT | SDK Bluetooth dependency; no Bluetooth connection is required for simulation |
 | [Warp](https://github.com/NVIDIA/warp/blob/main/LICENSE.md) | Apache-2.0 | Optional transport backend |
 | [PyTorch](https://github.com/pytorch/pytorch/blob/main/LICENSE) | BSD-style | Optional tensor device model |
 | [Gymnasium](https://github.com/Farama-Foundation/Gymnasium/blob/main/LICENSE) | MIT | Optional environment API |
@@ -27,9 +29,14 @@ Research Model License Agreement.
 | [PyYAML](https://github.com/yaml/pyyaml/blob/main/LICENSE) | MIT | Optional species file parser |
 | pytest, pytest-cov, Ruff, build, SciPy | MIT, BSD or Apache/MIT | Development and tests |
 
-The new training extra uses Stable-Baselines3 without vendor SDKs or proprietary
-calibration services. The old `bridge` extra that pulled the separately licensed
-Scentience client has been removed; the pure numeric BLE schema adapter remains.
+The training extra uses Stable-Baselines3 without proprietary calibration
+services. The optional `bridge` extra installs the Scentience Python SDK.
+Its 2.2.2 wheel includes Apache-2.0 terms; the earlier characterization of that
+client as nonpermissive was incorrect. The package's license is distinct from
+this repository's custom terms. No existing license files were changed.
+The downloaded SDK wheel SHA256 was
+`713b9f1020cf93ef4346381140a39cfe55aacfabebb93e9fcc52f1a5a1581692`.
+SDK model weights and hosted services are not dependencies of this integration.
 No GADEN code or new copyleft runtime has been introduced. Other Isaac learning
 runners are documented integrations, not mandatory dependencies.
 

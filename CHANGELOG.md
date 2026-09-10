@@ -2,6 +2,12 @@
 
 ## Unreleased — research foundation update (2026-09-09)
 
+- Integrated the optional PyPI `scentience` SDK through the `bridge` extra,
+  SDK-shaped NumPy world readings, stable compound arrays and SDK-owned OVL
+  mapping. Added an offline example and tests against the real client with
+  an in-memory BLE transport. Corrected oxidizing MOX inversion, honored custom
+  calibration/stereo selection, and removed invented battery/status values.
+
 - Added validated configuration, bounded transport steps, source molar rates,
   scheduled releases, explicit species backgrounds and mass/pool-loss diagnostics.
   Preserved the existing default plume model and tightened Warp feature checks.
@@ -21,7 +27,8 @@
   expanded focused physical/integration checks and CPU/backend CI, and included
   documentation/configs/license notices in source distributions.
 - Corrected the inaccurate Apache-2.0 metadata to identify existing custom
-  Scentience terms. Removed the separately licensed optional client dependency.
+  repository terms. The separate PyPI client is Apache-2.0, verified in its
+  2.2.2 wheel; the optional client dependency is retained in the `bridge` extra.
   Existing LICENSE, sensor LICENSE_MODEL, NOTICE and ACKNOWLEDGEMENTS are unchanged.
 
 These Scentience model modifications are documented in

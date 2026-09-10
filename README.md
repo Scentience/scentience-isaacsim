@@ -37,7 +37,7 @@ truth = world.truth((5.0, 0.0, 1.0))   # ppm, for evaluation and debugging
 ```
 
 NumPy is the only required dependency. Optional extras are `viz`, `envs`,
-`gpu`, `torch`, `train`, and `dev`. See [setup](SETUP.md) for installation,
+`gpu`, `torch`, `train`, `bridge`, and `dev`. See [setup](SETUP.md) for installation,
 validation, and common problems.
 
 ## Capabilities
@@ -73,6 +73,25 @@ including six individual MOX calibrations and CO₂/EC settings. Unknown JSON
 keys fail with an error. Python dataclasses support custom airflow and geometry
 without forcing a file format on advanced users. See
 [configuration](docs/CONFIGURATION.md).
+
+## Scentience SDK integration
+
+The optional [Scentience Python SDK](https://pypi.org/project/scentience/) connects
+hardware readings to the NumPy workflow. Install `pip install -e ".[bridge]"`
+and run `python examples/07_scentience_sdk.py --ovl` for an offline example.
+
+```python
+from scentience_olfaction.bridge import readings_to_numpy
+
+world.step(0.05)
+frame = world.read_ble((2.0, 0.0, 1.0))
+array = readings_to_numpy(frame)  # [1, 14], explicit SDK compound order
+```
+
+The same array converter accepts `ScentienceDevice.sample_ble()` and exported
+JSON logs. Optional OVL conversion delegates to the SDK's own mapping. See
+[SDK integration](docs/SDK_INTEGRATION.md) for calibration limits, hardware
+examples, and the Rust, Conan/C++ and NPM SDK links.
 
 ## Run a research workflow
 

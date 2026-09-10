@@ -95,7 +95,7 @@ def run_metadata(config: dict, seed: int, **extra) -> dict:
     """Record software versions and a stable configuration fingerprint."""
     encoded = json.dumps(config, sort_keys=True, separators=(",", ":"), allow_nan=False)
     versions = {"python": platform.python_version()}
-    for package in ("scentience-olfaction", "numpy", "torch", "warp-lang", "gymnasium",
+    for package in ("scentience-olfaction", "scentience", "numpy", "torch", "warp-lang", "gymnasium",
                     "stable-baselines3"):
         try:
             versions[package] = version(package)

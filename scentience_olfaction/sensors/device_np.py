@@ -7,8 +7,10 @@ Isaac.  The vectorised torch twin (sensors/scentience_v1.py) is for Isaac Lab
 RL at scale; tests/test_device_parity.py holds the two to the same step
 response when torch is available.
 
-Channel schema follows the Scentience BLE/Sockets ordering. Matching a schema
-does not establish hardware accuracy or transferability of a learned policy.
+The 11 instrument channels are distinct from the SDK's compound dictionary.
+Use ``scentience_olfaction.bridge.ble_frame(reading, device_config=device.cfg)``
+for the optional PyPI ``scentience`` workflow. Matching a schema does not
+establish hardware accuracy or transferability of a learned policy.
 """
 
 from __future__ import annotations

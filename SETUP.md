@@ -16,6 +16,11 @@ repository root. Optional extras: `gpu` (Warp), `torch` (batched device),
 `train` (Stable-Baselines3), `yaml` (species registry), and `dev` (development
 and validation tools). Use `test` for CPU CI without Torch/Warp.
 
+For the optional Scentience Python SDK, use `python -m pip install -e ".[bridge]"`.
+The bridge supports `scentience>=2.2.2,<3`; the offline example
+`python examples/07_scentience_sdk.py --ovl` needs no API key, radio or model
+download. See [SDK integration](docs/SDK_INTEGRATION.md) for live hardware use.
+
 ## Isaac Sim and Isaac Lab
 
 Use the interpreter supplied by your Isaac Sim 6.x / Isaac Lab 3.x
