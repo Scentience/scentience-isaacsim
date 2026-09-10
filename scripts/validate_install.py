@@ -1,79 +1,82 @@
-"""
-Run this INSIDE Isaac Sim to validate the integration.
+"""Live dependency and class-binding checks for Isaac Sim 6 / Isaac Lab 3.
 
-    ./python.sh /path/to/scripts/validate_install.py
-
-Until this passes, docs/ISAAC_COMPATIBILITY.md must continue to say the Isaac
-integration is unvalidated. Paste the output into that file with a date.
+Run with Isaac Lab's Python: ./isaaclab.sh -p /repo/scripts/validate_install.py --headless
+This launches the real application. It does not create a scene; follow with
+verify_in_isaac.py to exercise views, sensors, real robot assets and resets.
 """
+from __future__ import annotations
+
+import argparse
+import importlib.metadata
+import inspect
+from pathlib import Path
 import sys
 
-CHECKS = []
-def check(name):
-    def deco(fn):
-        CHECKS.append((name, fn)); return fn
-    return deco
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
-@check("isaacsim + isaaclab import, versions reported")
-def _c1():
-    import isaacsim, isaaclab
-    return f"isaacsim={getattr(isaacsim,'__version__','?')} isaaclab={getattr(isaaclab,'__version__','?')}"
+def run_checks():
+    checks = []
+
+    def check(name, fn):
+        try:
+            detail = fn()
+            print(f"[PASS] {name}: {detail}")
+            checks.append(True)
+        except Exception as exc:
+            print(f"[FAIL] {name}: {type(exc).__name__}: {exc}")
+            checks.append(False)
+
+    def versions():
+        found = {}
+        for name, major in (("isaacsim", "6"), ("isaaclab", "3")):
+            try:
+                version = importlib.metadata.version(name)
+            except importlib.metadata.PackageNotFoundError:
+                module = __import__(name)
+                version = getattr(module, "__version__", "unknown")
+            if version.split(".")[0] != major:
+                raise ValueError(f"expected {name} {major}.x; detected {version}")
+            found[name] = version
+        return found
+
+    def binding():
+        from isaaclab.sensors import SensorBase, ImuCfg
+        from scentience_isaaclab.olfactory_sensor import OlfactorySensor, OlfactorySensorCfg
+        if "env_mask" not in inspect.signature(SensorBase._update_buffers_impl).parameters:
+            raise ValueError("requires Lab 3 env_mask API")
+        cfg = OlfactorySensorCfg(prim_path="/World/envs/env_.*/Robot/base")
+        cfg.validate()
+        assert issubclass(OlfactorySensor, SensorBase) and cfg.class_type is OlfactorySensor
+        assert cfg.offset.rot == ImuCfg.OffsetCfg().rot == (0., 0., 0., 1.)
+        assert cfg.copy().to_dict() == cfg.to_dict()
+        return "real SensorBase/configclass; xyzw offset; config round trip"
+
+    def devices():
+        import torch
+        import warp as wp
+        return {"torch": torch.__version__, "warp": wp.__version__,
+                "torch_cuda": torch.cuda.is_available(), "warp_cuda_count": wp.get_cuda_device_count()}
+
+    check("target versions", versions)
+    check("sensor and standard Imu bindings", binding)
+    check("tensor backends (CPU is allowed for diagnostic runs)", devices)
+    print("Binding checks only; live scene verification still requires verify_in_isaac.py.")
+    return int(not all(checks))
 
 
-@check("SensorBase API shape matches what we subclass (2.3.x vs 3.0)")
-def _c2():
-    import inspect
-    from isaaclab.sensors import SensorBase
-    sig = inspect.signature(SensorBase._update_buffers_impl)
-    p = list(sig.parameters)[1]
-    if p == "env_mask":
-        return "Isaac Lab 3.x API (env_mask): matches this code"
-    # if p == "env_ids":
-    #     return "Isaac Lab 2.x API (env_ids): matches this code"
-    raise AssertionError(
-        f"_update_buffers_impl takes {p!r}, not 'env_ids' or. This is the 2.x "
-        "env_ids API. olfactory_sensor.py has been ported to 3.0 and no longer "
-        "matches. Either pin isaaclab to 2.3.x or revert the port.")
+def main():
+    from isaaclab.app import AppLauncher
 
-
-@check("warp available and reports a CUDA device")
-def _c3():
-    import warp as wp
-    wp.init()
-    n = wp.get_cuda_device_count()
-    if n == 0:
-        raise AssertionError("no CUDA device; the GPU transport path will not run")
-    return f"{n} CUDA device(s)"
-
-
-@check("our sensor cfg constructs and binds class_type")
-def _c4():
-    from scentience_isaaclab.olfactory_sensor import OlfactorySensorCfg, OlfactorySensor
-    cfg = OlfactorySensorCfg(prim_path="/World/envs/env_.*/Robot/base")
-    assert cfg.class_type is OlfactorySensor, "class_type not bound"
-    return f"{len(cfg.channel_names)} channels, profile={cfg.sensor_profile}"
-
-
-@check("warp/numpy physics parity")
-def _c5():
-    import subprocess, pathlib
-    r = subprocess.run([sys.executable, str(pathlib.Path(__file__).parent.parent /
-                        "tests" / "test_warp_parity.py")], capture_output=True, text=True)
-    if r.returncode != 0:
-        raise AssertionError(r.stdout[-800:] + r.stderr[-800:])
-    return "parity + OU dt-invariance pass"
+    parser = argparse.ArgumentParser(description=__doc__)
+    AppLauncher.add_app_launcher_args(parser)
+    args = parser.parse_args()
+    launcher = AppLauncher(args)
+    try:
+        return run_checks()
+    finally:
+        launcher.app.close()
 
 
 if __name__ == "__main__":
-    fails = 0
-    for name, fn in CHECKS:
-        try:
-            print(f"[ OK ] {name}\n       {fn()}")
-        except Exception as e:
-            fails += 1
-            print(f"[FAIL] {name}\n       {type(e).__name__}: {e}")
-    print(f"\n{len(CHECKS)-fails}/{len(CHECKS)} checks passed")
-    if fails:
-        print("Isaac integration is NOT validated. Do not update ISAAC_COMPATIBILITY.md.")
-    sys.exit(1 if fails else 0)
+    raise SystemExit(main())

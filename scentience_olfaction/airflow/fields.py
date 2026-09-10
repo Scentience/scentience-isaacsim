@@ -21,6 +21,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..emitters.emitters import validate_dt
+
 
 class AirflowField:
     def step(self, dt: float) -> None:  # noqa: B027
@@ -48,6 +50,12 @@ class UniformAirflow(AirflowField):
     seed: int = 0
 
     def __post_init__(self):
+        if np.asarray(self.mean).shape != (3,) or not np.isfinite(self.mean).all():
+            raise ValueError("mean must be a finite 3-vector")
+        if not math.isfinite(self.meander_std_rad) or self.meander_std_rad < 0:
+            raise ValueError("meander_std_rad must be finite and nonnegative")
+        if not math.isfinite(self.meander_timescale_s) or self.meander_timescale_s <= 0:
+            raise ValueError("meander_timescale_s must be finite and positive")
         self.reset(self.seed)
 
     def reset(self, seed: int | None = None) -> None:
@@ -56,7 +64,8 @@ class UniformAirflow(AirflowField):
         self._angle = 0.0
 
     def step(self, dt: float) -> None:
-        if self.meander_std_rad <= 0.0:
+        validate_dt(dt)
+        if dt == 0 or self.meander_std_rad <= 0.0:
             return
         a = math.exp(-dt / self.meander_timescale_s)
         self._angle = a * self._angle + self.meander_std_rad * math.sqrt(
@@ -83,18 +92,33 @@ class GridAirflow(AirflowField):
     cell_size: float = 0.25
     u: np.ndarray = None  # (Nx, Ny, Nz, 3)
 
+    def __post_init__(self):
+        self.origin = np.asarray(self.origin, dtype=np.float64)
+        self.u = np.asarray(self.u, dtype=np.float64)
+        if self.origin.shape != (3,) or not np.isfinite(self.origin).all():
+            raise ValueError("origin must be a finite 3-vector")
+        if not math.isfinite(self.cell_size) or self.cell_size <= 0:
+            raise ValueError("cell_size must be finite and positive")
+        if (self.u.ndim != 4 or self.u.shape[-1] != 3 or min(self.u.shape[:3]) < 1 or
+                not np.isfinite(self.u).all()):
+            raise ValueError("u must be finite with shape (Nx, Ny, Nz, 3), nonempty axes")
+
     @classmethod
     def from_npz(cls, path: str) -> "GridAirflow":
-        d = np.load(path)
-        return cls(origin=d["origin"], cell_size=float(d["cell_size"]), u=d["u"])
+        with np.load(path) as d:
+            return cls(origin=d["origin"], cell_size=float(d["cell_size"]), u=d["u"])
 
     def velocity(self, points: np.ndarray) -> np.ndarray:
-        p = (np.atleast_2d(points) - self.origin) / self.cell_size - 0.5
+        points = np.atleast_2d(np.asarray(points, dtype=np.float64))
+        if points.ndim != 2 or points.shape[1] != 3 or not np.isfinite(points).all():
+            raise ValueError("points must be finite with shape (M, 3)")
+        p = (points - self.origin) / self.cell_size - 0.5
         dims = np.asarray(self.u.shape[:3])
+        # Clamp coordinates BEFORE finding the interpolation cell/weights.
+        # Clipping only i0 makes the last center jump back a full cell.
+        p = np.clip(p, 0, dims - 1)
         i0 = np.floor(p).astype(int)
         f = p - i0
-        i0 = np.clip(i0, 0, dims - 2)
-        f = np.clip(f, 0.0, 1.0)
         out = np.zeros((p.shape[0], 3))
         for dx in (0, 1):
             for dy in (0, 1):
@@ -102,7 +126,8 @@ class GridAirflow(AirflowField):
                     w = (np.where(dx, f[:, 0], 1 - f[:, 0]) *
                          np.where(dy, f[:, 1], 1 - f[:, 1]) *
                          np.where(dz, f[:, 2], 1 - f[:, 2]))
-                    out += w[:, None] * self.u[i0[:, 0] + dx, i0[:, 1] + dy, i0[:, 2] + dz]
+                    cell = np.minimum(i0 + (dx, dy, dz), dims - 1)
+                    out += w[:, None] * self.u[cell[:, 0], cell[:, 1], cell[:, 2]]
         return out
 
 

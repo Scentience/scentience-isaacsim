@@ -1,98 +1,63 @@
-# Setup (verified on this machine, 2026-08-21)
+# Installation and validation
 
-Standalone Python + Gymnasium paths are installed and passing. The Isaac Sim
-path is blocked by hardware -- see `docs/ISAAC_COMPATIBILITY.md`.
+## Standalone Python
 
-## Environment
+Use Python 3.10 or newer. Linux, macOS and Windows can run the NumPy core.
 
-| | |
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[viz,envs]"
+python examples/01_minimal.py
+```
+
+On Windows, activate with `.venv\Scripts\Activate.ps1`. Run commands from the
+repository root. Optional extras: `gpu` (Warp), `torch` (batched device),
+`train` (Stable-Baselines3), `yaml` (species registry), and `dev` (development
+and validation tools). Use `test` for CPU CI without Torch/Warp.
+
+## Isaac Sim and Isaac Lab
+
+Use the interpreter supplied by your Isaac Sim 6.x / Isaac Lab 3.x
+installation. Install this repository in editable mode in that environment;
+avoid replacing its Torch, Warp, NumPy, CUDA or Kit packages with a second
+environment's versions.
+
+```bash
+python -m pip install -e .
+python scripts/validate_install.py
+```
+
+Launch Kit before importing Isaac-dependent modules. Follow
+[the integration guide](docs/ISAAC_INTEGRATION.md) for scene configuration and
+[compatibility notes](docs/ISAAC_COMPATIBILITY.md) for live checks. The optional
+Kit extension lives in `isaac_extension/scentience.isaac.olfaction`; add
+`isaac_extension` to Extension Manager search paths after installing the core.
+
+## Verify changes
+
+```bash
+python -m pip install -e ".[dev]"
+python -m ruff check .
+python -m pytest -m "not isaac and not slow"
+python -m pytest -m slow
+python -m build
+```
+
+The long plume-statistics tests are CPU workloads and may take several minutes.
+Warp can execute parity tests on CPU when a CUDA GPU is unavailable. Actual
+Isaac rendering and robotics simulation still require a supported Isaac host.
+
+## Troubleshooting
+
+| Symptom | Check |
 |---|---|
-| Python | 3.11.9 (`.venv/` at repo root) |
-| Install | `pip install -e ".[dev]"` |
-| NumPy / SciPy | 2.4.6 / 1.17.1 |
-| Warp | 1.16.0, **CUDA `cuda:0` sm_75 available** (GTX 1650, 4 GiB) |
-| Torch | 2.13.0 |
-| Gymnasium | 1.3.0 |
-
-Python 3.11 was chosen deliberately: it satisfies `requires-python >=3.10` and
-is also the interpreter Isaac Sim 5.1 / Isaac Lab 2.3.x expect, so this same
-venv can be reused if the Isaac path is ever unblocked.
-
-## Create the environment from scratch
-
-```powershell
-winget install --id Python.Python.3.11
-& "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe" -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -U pip
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-```
-
-## Run
-
-Windows (PowerShell) -- substitute `.venv/bin/python` on Linux/macOS:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -m "not isaac"          # 62 passed
-.\.venv\Scripts\python.exe examples\01_minimal.py
-.\.venv\Scripts\python.exe examples\02_walls_and_wind.py
-.\.venv\Scripts\python.exe examples\03_olfactory_inertial_odometry.py --platform quadruped
-.\.venv\Scripts\python.exe examples\04_gym_baseline.py
-.\.venv\Scripts\python.exe scripts\validate_physics.py       # the realism gate
-.\.venv\Scripts\python.exe scripts\provenance_demo.py        # evidence levels
-```
-
-The Isaac integration check runs inside Isaac Sim's own interpreter, not this
-venv, and is expected to fail on hardware without RT cores:
-
-```powershell
-$env:PYTHONPATH = $PWD; C:\isaacsim\python.bat scripts\validate_install.py
-```
-
-## Verified output (2026-08-21)
-
-```
-pytest -m "not isaac"          62 passed in 248.44s
-01_minimal.py                  11 device channels + ground truth
-02_walls_and_wind.py           upwind 4.860 ppm | behind wall 0.000 (blocked)
-03_..._odometry.py quadruped   bouts=7  dead-reckoning 169.56 deg -> OIO 14.62 deg (-91.4%)
-04_gym_baseline.py             cast-and-surge success rate 0.40, mean final dist 4.52 m
-```
-
-The realism gate (`tests/test_plume_gate.py`) and `test_physics_rigor.py` are
-inside that 62 -- the plume statistics still bracket published turbulence
-theory on this install.
-
-## Realism gate (`scripts/validate_physics.py`, 600 s @ 100 Hz, probe 8 m downwind)
-
-| series | blank CV | whiffs | gate |
-|---|---|---|---|
-| filament, full | 1.78 | 318 | |
-| filament, meander ablated | 0.97 | 448 | |
-| gaussian | nan | 1 | **FAIL (by design)** |
-| via slow MOX (tau_fall 12 s) | 1.99 | 75 | PASS |
-| via fast MOX (46 ms, Dennler-class) | 1.79 | 327 | PASS |
-
-Slow sensor retains 23.6% of ground-truth whiffs; fast retains 102.8%. Both
-README mechanisms hold: meander is what makes blank durations heavy-tailed
-(CV 1.78 -> 0.97 when ablated), and sensor bandwidth gates what a policy can
-see. The Gaussian series failing the gate is the intended negative control.
-
-The README's specific figure of 2.31 for the full plume is seed-dependent --
-across 5 seeds the full-plume CV is 1.72 +/- 0.41 (range 1.40-2.40), so this
-run's 1.78 is typical and 2.31 is a high draw. The ablated 0.96 is robust
-(0.950 +/- 0.020). See docs/RELEASE_VALIDATION.md.
-
-## Fixes applied during setup
-
-`scripts/validate_physics.py` did not run as shipped. Two pre-existing bugs,
-both fixed:
-
-1. `base_cfg()` passed `specific_gravity=1.0` to `FilamentPlumeConfig`, which
-   has no such field -- `specific_gravity` belongs to `Species`
-   (`chemistry/registry.py:30`). Raised `TypeError` on every invocation.
-   Removed; behaviour-identical because `buoyancy_model` defaults to `"none"`,
-   so the term is never applied.
-2. Cache paths were hardcoded to `/tmp/full.npz` and `/tmp/nm.npz`, which do
-   not resolve on Windows. Now `tempfile.gettempdir()`.
-
-No other repo source was modified.
+| Missing `gymnasium`, `matplotlib`, or `stable_baselines3` | Install the matching `envs`, `viz`, or `train` extra using the same Python interpreter. |
+| `omni`/Kit import errors | Start the Isaac application before importing simulator modules; a plain Python process cannot replace Kit. |
+| No odor at a probe | Warm up transport, verify downwind position and sensor height, and inspect `world.truth()` plus `plot_plume.py`. |
+| CO₂ changes slowly or repeats | SCD30 has 20 s diffusion time constant; SCD4x has 60 s. Output is sample-and-hold, independently of your control rate. |
+| CO₂ has a doubled ambient offset | A plume with `background_ppm.carbon_dioxide` requires absolute concentration mode; world/Isaac defaults select it automatically. |
+| Policy sees weak stereo cues | Compare baseline spacing, wind speed, sampling period and sensor lag; a hardware-size baseline may yield sub-tick arrival differences. |
+| Warp rejects an option | Use `transport_backend="numpy"` for the documented full reference model; unsupported physics is rejected instead of ignored. |
+| Cache directory is not writable | Set `MPLCONFIGDIR` and `WARP_CACHE_PATH` to writable directories before running. |
+| A run directory already exists | Choose a new `--out` directory; experiment commands avoid replacing previous results. |

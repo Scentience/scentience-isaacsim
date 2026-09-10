@@ -9,9 +9,10 @@ equivalents; per-species correction factors (CF) convert:
     reading_isobutylene_equiv = sum_i  C_i / CF_i        (CF=inf -> invisible)
 
 CF values below are from the published RAE Systems TN-106 tables (tabulated
-measurement data = facts; no license restriction). A species whose IE exceeds
-the lamp energy has CF=inf here, which is the honest encoding of "the lamp
-cannot see it" -- H2, CO, CO2, CH4 for all standard lamps.
+measurement data = facts; no license restriction). The empirical table is
+used directly, including published weak responses. H2, CO, CO2 and CH4 are
+explicitly blind here; an unlisted species also has CF=inf because no response
+is calibrated in this model, not because its physical blindness is established.
 
 Known incumbent bug, deliberately not inherited: GADEN ships 10.47 as the
 ethanol "correction factor" at 11.7 eV; 10.47 eV is ethanol's ionisation
@@ -26,10 +27,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .mox import finite_value, validate_concentrations, validate_environment
+
 INF = math.inf
 
 # RAE TN-106 correction factors (10.6 eV lamp is the standard field lamp).
-# Species not listed for a lamp: not detectable (CF=inf).
+# Unlisted species have no calibrated response in this model (CF=inf).
+# That is not evidence of physical blindness; TN-106 includes weak responses
+# above nominal lamp energy, so retain its empirical entries as published.
 CORRECTION_FACTORS = {
     9.8: {"isobutylene": 1.0, "toluene": 0.54, "benzene": 0.55, "acetone": 1.2,
           "ethanol": 10.0, "isopropanol": 500.0},
@@ -51,11 +56,19 @@ class PIDConfig:
     humidity_quench_at_90rh: float = 0.30
     """Fractional signal loss at 90 %RH (typ. 20-40 % for 10.6 eV lamps)."""
 
+    def __post_init__(self):
+        if self.lamp_ev not in CORRECTION_FACTORS:
+            raise ValueError(f"lamp_ev must be one of {sorted(CORRECTION_FACTORS)}")
+        finite_value("tau_s", self.tau_s, positive=True)
+        finite_value("noise_ppm", self.noise_ppm, nonnegative=True)
+        finite_value("humidity_quench_at_90rh", self.humidity_quench_at_90rh, nonnegative=True)
+        if self.humidity_quench_at_90rh > 1:
+            raise ValueError("humidity_quench_at_90rh must be in [0, 1]")
+
 
 class PIDChannel:
     def __init__(self, cfg: PIDConfig, rng: np.random.Generator):
-        if cfg.lamp_ev not in CORRECTION_FACTORS:
-            raise ValueError(f"lamp_ev must be one of {sorted(CORRECTION_FACTORS)}")
+        cfg.__post_init__()
         self.cfg = cfg
         self.rng = rng
         self._cf = CORRECTION_FACTORS[cfg.lamp_ev]
@@ -70,14 +83,17 @@ class PIDChannel:
         return self._cf.get(species, INF)
 
     def step(self, conc_ppm: dict[str, float], dt: float, rh_pct: float = 50.0) -> dict:
+        finite_value("dt", dt, positive=True)
+        validate_concentrations(conc_ppm)
+        validate_environment(rh_pct=rh_pct)
         target = 0.0
         for g, c in conc_ppm.items():
             cf = self.correction_factor(g)
             if math.isfinite(cf) and cf > 0:
                 target += c / cf
         # humidity quench, linear in RH above 0
-        target *= 1.0 - self.cfg.humidity_quench_at_90rh * (rh_pct / 90.0)
-        alpha = 1.0 - math.exp(-dt / max(self.cfg.tau_s, 1e-6))
+        target *= max(0.0, 1.0 - self.cfg.humidity_quench_at_90rh * (rh_pct / 90.0))
+        alpha = -math.expm1(-dt / self.cfg.tau_s)
         self._y += alpha * (target - self._y)
         return {"ppm_isobutylene_equiv":
                 self._y + self.cfg.noise_ppm * self.rng.standard_normal()}

@@ -1,9 +1,12 @@
-"""MDP terms for Isaac Lab manager-based and direct envs.
+"""Observation terms usable in Isaac manager-based and direct environments."""
+from .observations import (
+    gas_channels, gas_ground_truth, gas_sample_age, gas_sample_valid,
+    imu_angular_velocity, imu_sample_age, imu_sample_valid, imu_specific_force,
+    wind_body, wind_world,
+)
 
-Was empty, which made `mdp.gas_channels` unreachable through the package --
-the exact path Isaac Lab observation-manager configs reference terms by.
-Caught by scripts/check_isaaclab_binding.py check 8.
-"""
-from .observations import gas_channels, gas_ground_truth, wind_body
-
-__all__ = ["gas_channels", "gas_ground_truth", "wind_body"]
+__all__ = [
+    "gas_channels", "gas_ground_truth", "gas_sample_age", "gas_sample_valid",
+    "imu_angular_velocity", "imu_sample_age", "imu_sample_valid", "imu_specific_force",
+    "wind_body", "wind_world",
+]

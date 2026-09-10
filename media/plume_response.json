@@ -1,0 +1,160 @@
+{
+  "sensor_profile": "fast_modulated",
+  "device_profile": "scentience_v1",
+  "channel_names": [
+    "chem_left_red",
+    "chem_left_nh3",
+    "chem_left_ox",
+    "chem_right_red",
+    "chem_right_nh3",
+    "chem_right_ox",
+    "co2_ppm",
+    "temperature_c",
+    "relative_humidity",
+    "ec1",
+    "ec2"
+  ],
+  "dt_s": 0.05,
+  "duration_s": 39.999999999999865,
+  "probe_m": [
+    6.0,
+    0.0,
+    1.0
+  ],
+  "mean_ppm": 14.174831970127379,
+  "peak_ppm": 266.02751373533715,
+  "seed": 7,
+  "config": {
+    "plume": {
+      "emitters": null,
+      "source_pos": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "release_rate_hz": 20.0,
+      "ppm_center_initial": 300,
+      "sigma0": 0.1,
+      "species": "ethanol",
+      "gamma": 0.001,
+      "turbulence_intensity": 0.25,
+      "lagrangian_timescale": 1.0,
+      "sigma_u_floor": 0.02,
+      "wind_mean": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "meander_std_rad": 0.2,
+      "meander_timescale": 12.0,
+      "temperature_k": 293.15,
+      "pressure_atm": 1.0,
+      "buoyancy_model": "none",
+      "slip_speed_scale": 0.02,
+      "max_filaments": 20000,
+      "max_age_s": 120.0,
+      "domain_min": [
+        -5.0,
+        -20.0,
+        0.0
+      ],
+      "domain_max": [
+        60.0,
+        20.0,
+        6.0
+      ],
+      "cutoff_sigmas": 3.0,
+      "background_ppm": {},
+      "molar_rate_mol_s": null,
+      "max_step_s": 0.05
+    },
+    "seed": 7,
+    "device_profile": "scentience_v1",
+    "sensor_profile": "fast_modulated",
+    "stereo_baseline_m": 0.04,
+    "device_config": {
+      "sensor_profile": "fast_modulated",
+      "mox_channels": null,
+      "co2": {
+        "tau63_s": 60.0,
+        "sample_interval_s": 5.0,
+        "accuracy_base_ppm": 50.0,
+        "accuracy_frac": 0.025,
+        "repeatability_ppm": 10.0,
+        "ambient_baseline_ppm": 420.0,
+        "asc_enabled": true,
+        "asc_window_s": 604800.0,
+        "asc_gain": 0.2,
+        "concentration_mode": "excess",
+        "accuracy_bands": [],
+        "accuracy_range_ppm": [
+          400.0,
+          1000.0
+        ],
+        "accuracy_bias_fraction": 0.0,
+        "output_range_ppm": null,
+        "resolution_ppm": 0.0,
+        "asc_target_ppm": 400.0
+      },
+      "ec_channels": [
+        {
+          "name": "ec_co",
+          "sensitivity_na_per_ppm": {
+            "carbon_monoxide": 500.0,
+            "hydrogen": 200.0,
+            "hydrogen_sulfide": 5.0,
+            "ethanol": 2.0
+          },
+          "tau_s": 25.0,
+          "zero_current_na": -10.0,
+          "zero_tempco_na_per_k": -2.0,
+          "span_tempco_per_k": 0.008,
+          "noise_na": 1.5,
+          "drift_na_per_sqrt_s": 0.02,
+          "n_electrons": 2,
+          "area_cm2": 2.25,
+          "diffusivity_cm2_s": 1e-05
+        },
+        {
+          "name": "ec_h2s",
+          "sensitivity_na_per_ppm": {
+            "hydrogen_sulfide": 1500.0,
+            "carbon_monoxide": 3.0,
+            "nitrogen_dioxide": -100.0
+          },
+          "tau_s": 20.0,
+          "zero_current_na": -10.0,
+          "zero_tempco_na_per_k": -2.0,
+          "span_tempco_per_k": 0.008,
+          "noise_na": 1.5,
+          "drift_na_per_sqrt_s": 0.02,
+          "n_electrons": 2,
+          "area_cm2": 2.25,
+          "diffusivity_cm2_s": 1e-05
+        }
+      ],
+      "ambient_temp_c": 20.0,
+      "ambient_rh": 50.0,
+      "flow_mps": 0.3,
+      "heater_level": 1.0,
+      "ratio_feature": "ratio_measured",
+      "dtype": "float32",
+      "r0_range": null,
+      "rs_r0_clean_air": null,
+      "drift_sigma_per_sqrt_s": null,
+      "white_noise_frac": null,
+      "flicker_noise_frac": null,
+      "humidity_coeff": null
+    }
+  },
+  "versions": {
+    "python": "3.11.6",
+    "scentience-olfaction": "0.1.0",
+    "numpy": "2.4.6",
+    "torch": "2.12.0",
+    "warp-lang": "1.17.0",
+    "gymnasium": "1.3.0",
+    "stable-baselines3": "2.9.0"
+  },
+  "config_sha256": "a1835a48824f64ded77888bb3cc4a25dee6cbfc065e015684d81564b5da55639"
+}

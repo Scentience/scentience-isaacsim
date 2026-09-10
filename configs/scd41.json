@@ -1,0 +1,17 @@
+{
+  "seed": 7,
+  "device_profile": "scd41",
+  "device_config": {
+    "concentration_mode": "absolute",
+    "ambient_baseline_ppm": 420.0,
+    "asc_enabled": false,
+    "repeatability_ppm": 10.0
+  },
+  "plume": {
+    "species": "carbon_dioxide",
+    "background_ppm": {"carbon_dioxide": 420.0},
+    "source_pos": [0.0, 0.0, 1.0],
+    "ppm_center_initial": 3000.0,
+    "max_filaments": 4000
+  }
+}

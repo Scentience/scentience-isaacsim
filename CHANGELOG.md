@@ -1,6 +1,34 @@
 # Changelog
 
-## Unreleased (release-validation pass, 2026-08-21..23)
+## Unreleased — research foundation update (2026-09-09)
+
+- Added validated configuration, bounded transport steps, source molar rates,
+  scheduled releases, explicit species backgrounds and mass/pool-loss diagnostics.
+  Preserved the existing default plume model and tightened Warp feature checks.
+- Replaced the simplified Torch device with the shared species-specific
+  Scentience model: stereo MOX, CO₂ and both EC channels, independent resets,
+  tunable calibration, polarity-aware kinetics and variable-step transport delay.
+- Added optional SCD30/SCD40/SCD41 response models and fixed-bias EmStat Pico
+  readout for one/two independently calibrated 2/3-electrode cells.
+- Reworked Isaac Lab 3 mounting, capture timing, per-environment origins/resets,
+  sensor/IMU observation interfaces and explicit task registration. Retired the
+  nonfunctional robot-free Isaac task stub; the standalone Gym task is runnable.
+  New Isaac changes require live validation on a supported host.
+- Added JSON experiment configurations, Gym registration/history, PPO/SAC/TD3
+  training/evaluation, seeded baseline benchmarking, metrics, trace recording
+  integrity checks and concentration/response figures.
+- Restored documentation to version control, corrected PDF/CCDF interpretation,
+  expanded focused physical/integration checks and CPU/backend CI, and included
+  documentation/configs/license notices in source distributions.
+- Corrected the inaccurate Apache-2.0 metadata to identify existing custom
+  Scentience terms. Removed the separately licensed optional client dependency.
+  Existing LICENSE, sensor LICENSE_MODEL, NOTICE and ACKNOWLEDGEMENTS are unchanged.
+
+These Scentience model modifications are documented in
+`docs/SCENTIENCE_MODELS.md`. Scentience Sensor Research Model is licensed under
+the Scentience Sensor Research Model License Agreement.
+
+## Earlier validation work (2026-08-21..23)
 
 * **Test the Isaac Lab wrapper with no GPU.** `scripts/setup_isaaclab_local.py`
   builds `.venv-isaaclab/` (genuine `isaaclab==2.3.2` wheel + its pure-Python

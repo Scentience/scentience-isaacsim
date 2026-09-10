@@ -15,9 +15,11 @@ Structurally different from MOX in the two ways that matter:
     reproduces the physics so that acceleration strategy can be prototyped
     in simulation.
 
-The default channel constants follow the Chasing Ghosts stack (France et al.,
-arXiv:2602.19577): a two-electrode cell with a room-temperature ionic liquid
-transducer, electrode area 2.25 cm^2, read by chronoamperometry.
+The Cottrell helper's electrode area follows the Chasing Ghosts stack
+(France et al., arXiv:2602.19577): a two-electrode cell with a room-temperature
+ionic liquid transducer, electrode area 2.25 cm^2, read by chronoamperometry.
+The ordinary gas-channel sensitivities and lag below are separate illustrative
+amperometric profiles, not measured calibration of that ionic-liquid cell.
 """
 
 from __future__ import annotations
@@ -26,6 +28,8 @@ import math
 from dataclasses import dataclass, field
 
 import numpy as np
+
+from .mox import finite_value, validate_concentrations, validate_environment
 
 F_FARADAY = 96485.33212  # C/mol
 
@@ -46,9 +50,28 @@ class ECChannelConfig:
     area_cm2: float = 2.25             # Chasing Ghosts ItalSens cell
     diffusivity_cm2_s: float = 1.0e-5
 
+    def __post_init__(self):
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("EC name must be a nonempty string")
+        for name in ("tau_s", "area_cm2", "diffusivity_cm2_s"):
+            finite_value(name, getattr(self, name), positive=True)
+        for name in ("noise_na", "drift_na_per_sqrt_s"):
+            finite_value(name, getattr(self, name), nonnegative=True)
+        for name in ("zero_current_na", "zero_tempco_na_per_k", "span_tempco_per_k"):
+            finite_value(name, getattr(self, name))
+        if isinstance(self.n_electrons, bool) or not isinstance(self.n_electrons, (int, np.integer)) or self.n_electrons <= 0:
+            raise ValueError("n_electrons must be a positive integer")
+        if not isinstance(self.sensitivity_na_per_ppm, dict):
+            raise ValueError("sensitivity_na_per_ppm must be a dictionary")
+        for gas, value in self.sensitivity_na_per_ppm.items():
+            if not isinstance(gas, str) or not gas:
+                raise ValueError("EC species must be nonempty strings")
+            finite_value(f"sensitivity[{gas}]", value)  # negative cross terms are physical
+
 
 class ECChannel:
     def __init__(self, cfg: ECChannelConfig, rng: np.random.Generator):
+        cfg.__post_init__()
         self.cfg = cfg
         self.rng = rng
         self.reset()
@@ -58,11 +81,16 @@ class ECChannel:
         self._drift = 0.0
 
     def step(self, conc_ppm: dict[str, float], dt: float, temp_c: float = 20.0) -> dict:
+        finite_value("dt", dt, positive=True)
+        validate_concentrations(conc_ppm)
+        validate_environment(temp_c)
         c = self.cfg
         span = 1.0 + c.span_tempco_per_k * (temp_c - 20.0)
+        if span <= 0:
+            raise ValueError("temperature lies outside positive EC span calibration")
         target = span * sum(c.sensitivity_na_per_ppm.get(g, 0.0) * v
                             for g, v in conc_ppm.items())
-        alpha = 1.0 - math.exp(-dt / max(c.tau_s, 1e-6))
+        alpha = -math.expm1(-dt / c.tau_s)
         self._y_na += alpha * (target - self._y_na)
         self._drift += c.drift_na_per_sqrt_s * math.sqrt(dt) * self.rng.standard_normal()
         zero = c.zero_current_na + c.zero_tempco_na_per_k * (temp_c - 20.0)
@@ -71,10 +99,15 @@ class ECChannel:
 
     def cottrell_current(self, conc_mol_cm3: float, t_s: np.ndarray) -> np.ndarray:
         """Ideal Cottrell transient I(t) [A] for a potential step at t=0.
-        I = n F A sqrt(D) C / sqrt(pi t). Diverges at t->0 as physics says it
-        should; callers window it (real front ends saturate)."""
+        I = n F A sqrt(D) C / sqrt(pi t). The ideal expression diverges at
+        zero; this helper retains the legacy 1 microsecond time floor. It
+        does not model electrode kinetics, capacitive current or saturation."""
         c = self.cfg
-        t = np.maximum(np.asarray(t_s, np.float64), 1e-6)
+        finite_value("conc_mol_cm3", conc_mol_cm3, nonnegative=True)
+        times = np.asarray(t_s, np.float64)
+        if not np.all(np.isfinite(times)) or np.any(times < 0):
+            raise ValueError("Cottrell times must be finite and nonnegative")
+        t = np.maximum(times, 1e-6)
         return (c.n_electrons * F_FARADAY * c.area_cm2 *
                 math.sqrt(c.diffusivity_cm2_s) * conc_mol_cm3 / np.sqrt(math.pi * t))
 

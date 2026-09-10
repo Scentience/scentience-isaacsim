@@ -1,24 +1,13 @@
-"""
-Plume-realism gate.
+"""Intermittency diagnostics and a regression gate for the reference scenario.
 
-The single biggest failure mode in simulated olfactory navigation is a plume
-that is too smooth.  A time-averaged Gaussian field has a monotone gradient,
-so gradient ascent solves it, and the resulting policy fails immediately on
-hardware.  These statistics are what distinguishes a plume an agent must
-*search* from one it can simply climb.
+Threshold, probe location, sampling period, and finite-record censoring affect
+all statistics. These checks detect regressions in the supplied benchmark;
+they do not certify arbitrary flows against turbulent-plume theory.
 
-Targets, from the literature:
-
-  whiff / blank duration CCDF   heavy tailed, log-log slope near -3/2 over
-                                1-2 decades with an exponential cutoff at the
-                                large-eddy correlation time
-                                (Celani, Villermaux & Vergassola, PRX 4:041015)
-  intermittency                 ~0.5 at ~2 m off-axis, falling with distance
-  peak-to-mean                  ~14 near source
-                                (Farrell et al. 2002, Env. Fluid Mech. 2:143)
-
-An exponential blank-duration distribution means the plume has no large-scale
-meander and the environment is easier than reality.  Treat that as a failure.
+Celani et al. (2014), https://doi.org/10.1103/PhysRevX.4.041015, predict a
+-3/2 *probability density* exponent in a scaling regime. The corresponding
+untruncated CCDF slope is -1/2. The empirical CCDF tail slopes below are
+summaries of finite records with cutoffs, not estimates of that PDF exponent.
 """
 
 from __future__ import annotations
@@ -29,7 +18,12 @@ import numpy as np
 def whiff_blank_durations(
     signal: np.ndarray, dt: float, threshold: float
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Durations of above-threshold (whiff) and below-threshold (blank) runs."""
+    """Complete above/below-threshold runs; boundary-censored runs are excluded."""
+    signal = np.asarray(signal, dtype=float)
+    if signal.ndim != 1 or not np.isfinite(signal).all():
+        raise ValueError("signal must be a finite one-dimensional array")
+    if not np.isfinite(dt) or dt <= 0 or not np.isfinite(threshold):
+        raise ValueError("dt must be positive and threshold finite")
     above = signal > threshold
     if above.size == 0:
         return np.array([]), np.array([])
@@ -39,8 +33,7 @@ def whiff_blank_durations(
     lengths = (ends - starts) * dt
     states = above[starts]
     # Drop first and last runs: they are censored by the record boundary.
-    if lengths.size > 2:
-        lengths, states = lengths[1:-1], states[1:-1]
+    lengths, states = lengths[1:-1], states[1:-1]
     return lengths[states], lengths[~states]
 
 
@@ -52,21 +45,10 @@ def ccdf(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def tail_exponent(x: np.ndarray, lo_q: float = 0.75, hi_q: float = 0.99) -> float:
-    """
-    Log-log slope of the CCDF over the TAIL.
+    """Empirical log-log CCDF slope over a declared quantile range.
 
-    The fit range is not a detail -- it changes the answer.  On a validated
-    600 s filament record the same blank-duration sample gives:
-
-        q10-q90 (body)   -0.66      <- fitting here is simply wrong
-        q50-q95 (mid)    -1.36
-        q75-q99 (tail)   -1.68
-        q90-max          -1.28
-
-    Only the last three are comparable to the -3/2 first-return exponent.
-    Power-law exponents are a tail property; fitting the body mixes in the
-    small-eddy regime and reports a spuriously shallow slope.  Report the
-    range alongside the number, always.
+    This descriptive slope includes finite-record and exponential-cutoff
+    effects. It must not be compared directly with a theoretical PDF exponent.
     """
     xs, p = ccdf(x)
     if xs.size < 30:
@@ -89,6 +71,9 @@ def exponentiality(x: np.ndarray) -> float:
 
 
 def summarize(signal: np.ndarray, dt: float, threshold: float) -> dict:
+    signal = np.asarray(signal, dtype=float)
+    if signal.size == 0:
+        raise ValueError("summarize requires a nonempty signal")
     whiffs, blanks = whiff_blank_durations(signal, dt, threshold)
     nz = signal[signal > threshold]
     mean_all = float(signal.mean())
@@ -122,7 +107,9 @@ def gate(stats: dict) -> tuple[bool, list[str]]:
     elif stats["intermittency"] < 0.02:
         fails.append(f"intermittency {stats['intermittency']:.3f} < 0.02 -- probe is out of plume")
     cv = stats["blank_cv"]
-    if cv == cv and cv < 1.0:
+    if not np.isfinite(cv):
+        fails.append("insufficient complete blank durations to estimate CV")
+    elif cv < 1.0:
         fails.append(
             f"blank-duration CV {cv:.2f} < 1.0 -- blanks are sub-exponential, "
             "plume has no large-scale meander and is too easy"

@@ -37,7 +37,7 @@ def test_gate_passes():
     assert ok, f"realism gate failed: {fails}"
     assert st["blank_cv"] > 1.0
     assert st["peak_to_mean"] > 3.0
-    # Tail exponent should bracket the -3/2 first-return exponent.
+    # Empirical finite-record CCDF regression range, not the -3/2 PDF exponent.
     assert -2.5 < st["blank_tail_slope"] < -1.0, st["blank_tail_slope"]
 
 

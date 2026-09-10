@@ -1,127 +1,137 @@
-# Robotics Olfaction Package for Nvidia Isaac Sim and Isaac Lab
+# Scentience Olfaction for NVIDIA Isaac Sim and Isaac Lab
 
-[![Paper](https://img.shields.io/badge/arXiv-2602.19577-b31b1b?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2602.19577)
+[![Paper](https://img.shields.io/badge/arXiv-2602.19577-b31b1b)](https://arxiv.org/abs/2602.19577)
+[![Isaac Sim](https://img.shields.io/badge/Isaac%20Sim-6.x-76B900)](https://github.com/isaac-sim/IsaacSim)
+[![Isaac Lab](https://img.shields.io/badge/Isaac%20Lab-3.x-76B900)](https://github.com/isaac-sim/IsaacLab)
 
-[![Isaac Sim](https://img.shields.io/badge/Isaac%20Sim-6.x-76B900?logo=nvidia&logoColor=white)](https://github.com/isaac-sim/IsaacSim)
-[![Isaac Lab](https://img.shields.io/badge/Isaac%20Lab-3.x-76B900?logo=nvidia&logoColor=white)](https://github.com/isaac-sim/IsaacLab)
+![Scentience robot olfaction demonstration](media/scentience_robot.gif)
 
-[![Colab](https://img.shields.io/badge/Run%20in-Colab-yellow?logo=google-colab)](https://colab.research.google.com/drive/1H5OSeO43YfhAT9MqcJKaaSknFYhjimvg?usp=sharing)
-[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/kordelfrance/Olfaction-Vision-Language-Embeddings)
+Chemical transport, instrument response, and navigation tools for robotic
+olfaction. Build scent-based tasks with Scentience sensors, Sensirion CO₂
+sensors, or calibrated electrochemical cells connected to an EmStat Pico.
+The NumPy core runs on a laptop; optional Torch and Warp backends support
+batched Isaac workflows.
 
-[![Scentience robot olfaction demo](media/scentience_robot.gif)](media/scentience_robot.MP4)
+Developed by Kordel France and Scentience, Inc. The Scentience models build on
+the research listed in [CITATION.cff](CITATION.cff). Calibration assumptions and
+manufacturer specifications are documented separately from software validation.
 
-This repository is a growing effort to give proper simulation tools for 
-chemical sensing, plume tracking, and olfactory navigation for robotics.
-It contains chemical plume models and
-virtual Scentience olfactory sensors for NVIDIA Isaac Sim / Isaac Lab,
-Gymnasium, and standalone Python. 
-To our knowledge, this is the first olfactory and
-chemical sensing package for Isaac Sim.
+## Quick start
 
-Developed by Kordel France.
+Python 3.10 or newer; use the Python version required by your Isaac installation
+when running inside Isaac Sim.
 
-## Quick Start
-Only 5 lines to smell:
-
+```bash
+python -m pip install -e .
+python examples/01_minimal.py
+```
 
 ```python
 from scentience_olfaction import OlfactionWorld
 
-world = OlfactionWorld.simple()               # ethanol source, 1 m/s wind
+world = OlfactionWorld.simple()
 world.step(0.05)
-reading = world.read((5.0, 0.0, 1.0))         # virtual Scentience device
-truth   = world.truth((5.0, 0.0, 1.0))        # ground truth, for debugging
+reading = world.read((5.0, 0.0, 1.0))  # instrument output; each read advances the device
+truth = world.truth((5.0, 0.0, 1.0))   # ppm, for evaluation and debugging
 ```
 
-`pip install -e .` -- core needs only NumPy. `pip install -e ".[dev]"` for
-everything (Warp, torch, gymnasium, pytest). `pytest -m "not isaac"` runs the
-full physics validation on CPU, no Isaac, no GPU.
+NumPy is the only required dependency. Optional extras are `viz`, `envs`,
+`gpu`, `torch`, `train`, and `dev`. See [setup](SETUP.md) for installation,
+validation, and common problems.
 
-## Features Included
+## Capabilities
 
-| | |
-|---|---|
-| **Plume transport** | Filament model (Farrell 2002): multi-species, multiple emitters, walls (occupancy + line-of-sight + slide), two-scale turbulence. NumPy reference + Warp GPU twin, parity-tested. |
-| **Sensor suite** | Two chemical (metal-oxide) sensors, `chem_left` / `chem_right`, for stereo olfaction -- each samples the plume at its own position across a configurable baseline, with the full signal chain per sensor (power law -> asymmetric lag -> drift/1-f -> ADC divider). Plus a CO2 channel (photoacoustic, ASC), electrochemical cells (linear + Cottrell), and PID. Full Scentience V1 device in the hardware BLE channel schema. |
-| **Realism gate** | CI-enforced plume statistics vs published turbulence theory. A plume that gets too easy FAILS THE BUILD. |
-| **OIO** | Olfactory Inertial Odometry reference implementation (France et al., arXiv:2506.04539; Chasing Ghosts bout detection) with UAV / quadruped / biped / arm presets. |
-| **RL** | Gymnasium `PlumeNavEnv` (hardware-shaped observations, stereo cue included), cast-and-surge + stereo (onset-lag steering, sensor-only source declaration; Chasing Ghosts, arXiv:2602.19577) + random baselines, episode recorder. Isaac Lab `SensorBase` integration. |
-| **Provenance** | Every physical constant carries an evidence level (MEASURED/DATASHEET/DIGITIZED/SYNTHESIZED/ASSUMED); `claim_check()` refuses claims the evidence cannot support. |
+| Area | Included | Scope |
+|---|---|---|
+| Transport | Filaments, multiple species/sources, temporal releases, molar source rates, turbulence, background concentrations, loss diagnostics | NumPy reference; Warp implements a checked subset. See [transport](docs/TRANSPORT.md). |
+| Scentience | Stereo MiCS-6814 RED/NH₃/OX channels, CO₂, two EC channels; response lag, environment coupling, noise, drift, ADC readout | Shared tunable calibration with [NumPy/Torch fidelity notes](docs/SCENTIENCE_MODELS.md). |
+| Sensirion | SCD30, SCD40, SCD41; model-specific sampling, diffusion lag, accuracy envelope and quantization | Optional [manufacturer profiles](docs/SENSOR_PROFILES.md); firmware is not emulated. |
+| PalmSens | EmStat Pico current readout, 2/3 electrodes, one/two independent cells | Fixed-bias cell calibration required; no EIS or voltammetry solver. |
+| Robot integration | Rigid-link mounting, full 3D offsets, stereo sampling, environment origins and selected resets | [Isaac Lab adapter](docs/ISAAC_INTEGRATION.md); independent of robot articulation/control. |
+| Odometry | Olfactory inertial odometry reference plus frame-aware IMU adapters | Timestamp, gravity and frame conventions are explicit. |
+| Learning | Gymnasium environment, history wrapper, PPO/SAC/TD3 commands, sensor-only baselines | [Training guide](docs/TRAINING.md); Isaac runner registration for existing robot tasks. |
+| Evaluation | Plume slices, sensor traces, path length, success/SPL, declaration metrics, seeded logs and config fingerprints | [Research workflow](docs/RESEARCH_WORKFLOW.md). |
 
-## Examples
+## Configure sensors and scenes
+
+```python
+from scentience_olfaction.config import load_world
+
+world = load_world("configs/scd41.json")
+world.step(0.1)
+reading = world.read((2.0, 0.0, 1.0))
+```
+
+Change `device_profile` to `scd30`, `scd40`, or `scd41`. Use
+[emstat_dual.json](configs/emstat_dual.json) for independently calibrated EC
+cells; remove a channel for a single sensor and choose `electrode_count` per
+cell. Its example sensitivities are explicitly illustrative.
+
+For Scentience, `device_config` accepts the shared `DeviceConfig` fields,
+including six individual MOX calibrations and CO₂/EC settings. Unknown JSON
+keys fail with an error. Python dataclasses support custom airflow and geometry
+without forcing a file format on advanced users. See
+[configuration](docs/CONFIGURATION.md).
+
+## Run a research workflow
 
 ```bash
-python examples/01_minimal.py                                # smell in 5 lines
-python examples/02_walls_and_wind.py                         # plume vs a wall
-python examples/03_olfactory_inertial_odometry.py --platform quadruped   # or uav|biped|arm
-python examples/04_gym_baseline.py                           # the benchmark loop
-python examples/05_stereo_olfaction.py                       # two sensors, one plume: lateralisation
+python -m pip install -e ".[viz,train]"
+python scripts/plot_plume.py --out runs/plume
+python scripts/plot_verification.py --outdir runs/response
+python scripts/benchmark.py --config configs/navigation.json --episodes 5 --record --out runs/benchmark
+python scripts/train_sb3.py --config configs/navigation.json --algorithm ppo --out runs/ppo
+python scripts/train_sb3.py --evaluate runs/ppo --seed 100 --episodes 10
 ```
 
-Visual verification (`pip install "scentience-olfaction[viz]"`):
-`python scripts/plot_verification.py` renders ground truth vs the slow and
-fast device responses, and the stereo left/right cue, as PNGs.
-Something not working? See `docs/TROUBLESHOOTING.md`.
+Training saves its environment configuration, observation normalization,
+checkpoint, seed, and software versions. Evaluate on held-out seeds and
+conditions. The benchmark compares random, cast-and-surge, and stereo
+cast-and-surge policies using device observations.
 
-## Know these numbers before deploying:
+![Simulated plume and instrument response](media/plume_response.png)
 
-One can consider these as tuning parameters for the package.
-We have done our best to provide reasonable default values for generalized
-simulation scenarios. However, for optimal performance, these values should
-be tuned to the specific application.
+The figure is generated by `plot_plume.py`; its configuration and versions are
+stored in [the run record](media/plume_response.json).
 
-**1. Large-scale meander is not optional.** Blank-duration CV 1.7 +/- 0.4
-with it (range 1.4-2.4 over 5 seeds), 0.95 +/- 0.02 without (600 s @ 100 Hz,
-8 m downwind). CV < 1 means exponential blanks: no search problem, and
-policies learn gradient ascent that fails on hardware. Tail exponents bracket
-the -3/2 of Celani et al. (PRX 4:041015). Seed and threshold conventions in
-`docs/CHEMICAL_MODEL.md`.
+Examples also cover [walls and wind](examples/02_walls_and_wind.py),
+[olfactory inertial odometry](examples/03_olfactory_inertial_odometry.py),
+[stereo sensing](examples/05_stereo_olfaction.py), and
+[manufacturer sensors](examples/06_configurable_sensors.py).
 
-**2. Sensor bandwidth gates what a policy can see.** On an identical plume,
-a packaged MOX (tau_fall 12 s) retains **19%** of whiff events; a fast sensor
-(46 ms, time constants per Dennler et al., Sci. Adv. 2024) retains **97%**.
-State your `sensor_profile` in every result.
+## Isaac compatibility and scientific validation
 
-**3. Sensitivity coefficients.** 
-Sensitivity coefficients ship as DIGITIZED/SYNTHESIZED evidence (datasheets
-publish graphs, not tables). Plumes
-are implemented from Farrell's published equations since those from Gaden, et al.
-have license restrictions. See
-`docs/LICENSES_AND_PROVENANCE.md`.
+The maintainer verified the original integration in Isaac Sim 6.x / Isaac Lab
+3.x. The revised adapter targets that API; its current validation status and
+live checks are recorded in [Isaac compatibility](docs/ISAAC_COMPATIBILITY.md).
+Offline checks do not establish that every robot asset works in a live scene.
+The [validation record](docs/VALIDATION.md) lists the local test, packaging,
+training and visualization results, along with the remaining hardware checks.
 
-## Isaac Sim / Isaac Lab status
+```bash
+python -m pip install -e ".[dev]"
+python -m ruff check .
+python -m pytest -m "not isaac and not slow"
+```
 
-The Isaac Lab sensor (`scentience_isaaclab/`) targets **Isaac Lab 3.x /
-Isaac Sim 6.x** (the `env_mask` sensor API) and has been **executed and
-verified in a live Isaac Sim install** by the maintainer (2026-09). Run
-`scripts/validate_install.py` inside Isaac to confirm your own install --
-its checks now expect the 3.x API -- and see `docs/ISAAC_COMPATIBILITY.md`
-for the full validation record. Users pinned to Isaac Lab 2.3.x / Isaac
-Sim 5.1 should use the last 2.3.x-era release (see `BRANCHING.md`); the
-offline validation harnesses (`scripts/check_isaaclab_*.py`) still target
-the 2.3.2 wheel and are pending a re-point to a 3.x wheel.
+Run `python -m pytest -m slow` for the longer statistical checks. Tests cover
+conservation/loss, source schedules, stochastic replay, sensor dynamics,
+backend parity, partial resets, and learning interfaces. The plume statistics
+gate is a regression check for a specified benchmark, not a general validation
+of turbulent flows. Sensor bandwidth and event retention depend on calibration,
+plume parameters, sampling, and detection thresholds.
 
-## Cite
+For integration design and a proposed NVIDIA showcase/contribution scope, see
+[ecosystem assessment](docs/ECOSYSTEM.md). No NVIDIA endorsement is implied.
 
-See `CITATION.cff`. Related Scentience research: olfaction standardization
-(arXiv:2506.00398), olfactory inertial odometry (arXiv:2506.04539),
-accelerated chronoamperometry (arXiv:2506.04540), Chasing Ghosts
-(arXiv:2602.19577).
+## License and contributions
 
-## License
+The existing [LICENSE](LICENSE), [sensor research model terms](scentience_olfaction/sensors/LICENSE_MODEL),
+[NOTICE](NOTICE), and [ACKNOWLEDGEMENTS](ACKNOWLEDGEMENTS) govern this repository.
+The sensor terms restrict use to research. This repository is **not licensed
+uniformly under Apache-2.0**. Its selected optional software dependencies use
+permissive licenses; Isaac runtime components and assets retain their own terms.
+See [dependency and provenance notes](docs/LICENSES_AND_PROVENANCE.md).
 
-Please see file LICENSE for a full breakdown of the license for this software package.
-This software includes a number of subcomponents with separate
-copyright notices and license terms - please see the file ACKNOWLEDGEMENTS.
-
-Some components of this package are built off open-sourced Apache 2.0 and/or MIT
-licensed software and research.
-We do our best to credit the original authors for any work off which this package
-is built, but make no claims that this is entirely thorough due to the difficulty
-in finding origin of certain aspects of olfaction such as certain plume filament 
-algorithms.
-By using this package, you acknowledge this risk accordingly.
-
-The Scentience sensor model copyright and license terms can be
-found in ./sensors/LICENSE_MODEL file.
-
+Contributions should include calibration provenance, a focused functional test,
+and the runtime versions used for validation. See [CONTRIBUTING.md](CONTRIBUTING.md).

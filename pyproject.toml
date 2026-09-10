@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,15 +8,14 @@ version = "0.1.0"
 description = "Chemical plume transport and olfactory sensor models for NVIDIA Isaac Sim and Isaac Lab"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = "LicenseRef-Scentience AND LicenseRef-Scentience-Sensor-Research"
+license-files = ["LICENSE", "scentience_olfaction/sensors/LICENSE_MODEL", "NOTICE", "ACKNOWLEDGEMENTS"]
 authors = [{ name = "Scentience, Inc." }]
 keywords = ["robotics", "olfaction", "isaac-sim", "isaac-lab", "plume", "electronic-nose"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: Apache Software License",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
-  # Each of these was run green against the full `pytest -m "not isaac"` suite.
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -26,8 +25,6 @@ classifiers = [
 # it is what lets the physics run in CI and lets non-Isaac users adopt it.
 dependencies = ["numpy>=1.24"]
 
-# Taken from `git remote get-url origin`. NOTE: CITATION.cff currently says
-# .../scentience-isaac-olfaction, which does not match. Reconcile before release.
 [project.urls]
 Homepage = "https://github.com/Scentience/scentience-isaacsim"
 Repository = "https://github.com/Scentience/scentience-isaacsim"
@@ -37,17 +34,22 @@ Issues = "https://github.com/Scentience/scentience-isaacsim/issues"
 gpu = ["warp-lang>=1.5"]
 torch = ["torch>=2.0"]
 envs = ["gymnasium>=0.29"]
-bridge = ["scentience>=2.2"]
 yaml = ["pyyaml"]
 viz = ["matplotlib>=3.7"]
-dev = ["pytest>=7", "pytest-cov", "ruff>=0.16,<0.17", "warp-lang>=1.5", "torch>=2.0", "scipy", "gymnasium>=0.29", "matplotlib>=3.7"]
+train = ["stable-baselines3>=2.3,<3", "gymnasium>=0.29"]
+test = ["pytest>=7", "pytest-cov", "ruff>=0.9,<1", "build>=1", "scipy", "gymnasium>=0.29", "matplotlib>=3.7"]
+dev = ["scentience-olfaction[test,gpu,torch,train]"]
 
 [tool.setuptools.packages.find]
 include = ["scentience_olfaction*", "scentience_isaaclab*"]
 
+[tool.setuptools.package-data]
+scentience_olfaction = ["py.typed", "sensors/LICENSE_MODEL"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["_to_delete"]
 
 # Pinned explicitly. Ruff's implicit default rule set has widened across
 # releases, so relying on it means `ruff check .` in CI can go red on a ruff

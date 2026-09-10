@@ -1,200 +1,132 @@
-"""Static API-contract validation of scentience_isaaclab against the REAL
-isaaclab 2.3.x wheel from PyPI. No GPU, no Isaac install needed.
+"""Inspect official Isaac Lab 3 source without importing or executing Isaac.
 
-Usage:
-    pip download isaaclab==2.3.2 --no-deps --dest /tmp/lab
-    python scripts/check_isaaclab_contract.py /tmp/lab/isaaclab-2.3.2-*.whl
-
-This does NOT execute Isaac -- it parses the shipped source of the wheel and
-verifies every assumption our code documents about the 2.3.x API:
-
-  A. `SensorBase._update_buffers_impl` takes `env_ids` (2.x), not `env_mask` (3.0)
-  B. `SensorBase._initialize_impl` exists (we call super()._initialize_impl())
-  C. `SensorBaseCfg` has the fields we set: prim_path, update_period, debug_vis
-  D. `SensorBase.data` / `_update_outdated_buffers` lazy-eval contract exists
-  E. `isaaclab.utils.math.quat_apply` exists (the one math util we call)
-  F. `isaaclab.utils.configclass` exists
-  G. every `from isaaclab.X import Y` in our code resolves to a real symbol
-  H. DirectRLEnv/DirectRLEnvCfg/InteractiveSceneCfg/SimulationCfg exist
-  I. imu.py sensor (our stated authoring reference) really uses this shape
+Usage: python scripts/check_isaaclab_contract.py /path/to/IsaacLab
+Or pass one or more wheels containing isaaclab and isaaclab_physx source.
+A passing result proves source shape only, never live PhysX or robot binding.
 """
+from __future__ import annotations
+
+import argparse
 import ast
-import sys
+import hashlib
+from pathlib import Path
 import zipfile
 
-WHEEL = sys.argv[1]
-z = zipfile.ZipFile(WHEEL)
-names = z.namelist()
 
+class Sources:
+    def __init__(self, paths):
+        self.files = {}
+        for path in map(Path, paths):
+            if path.is_dir():
+                for file in path.rglob("*.py"):
+                    self.files[file.as_posix()] = file.read_text(encoding="utf-8")
+            elif zipfile.is_zipfile(path):
+                with zipfile.ZipFile(path) as archive:
+                    for name in archive.namelist():
+                        if name.endswith(".py"):
+                            self.files[f"{path}!/{name}"] = archive.read(name).decode("utf-8")
+            else:
+                raise ValueError(f"not a source directory or wheel: {path}")
 
-def read(path):
-    return z.read(path).decode("utf-8", "replace")
+    def read(self, suffix):
+        matches = [(p, text) for p, text in self.files.items() if p.endswith(suffix)]
+        if len(matches) != 1:
+            raise ValueError(f"expected one {suffix}, found {len(matches)}; provide Lab 3 + PhysX source")
+        return matches[0][1]
 
-
-def find(suffix):
-    hits = [n for n in names if n.endswith(suffix)]
-    return hits[0] if hits else None
-
-
-def parse(path):
-    return ast.parse(read(path))
-
-
-def class_def(tree, name):
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == name:
-            return node
-    return None
+    def cls(self, suffix, name):
+        for node in ast.walk(ast.parse(self.read(suffix))):
+            if isinstance(node, ast.ClassDef) and node.name == name:
+                return node
+        raise ValueError(f"missing class {name} in {suffix}")
 
 
 def method(cls, name):
     for node in cls.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
             return node
-    return None
+    raise ValueError(f"missing {cls.name}.{name}")
 
 
-def arg_names(fn):
-    return [a.arg for a in fn.args.args]
+def check_sources(sources):
+    results = []
+
+    def check(name, fn):
+        try:
+            fn()
+            results.append((name, True, ""))
+        except Exception as exc:
+            results.append((name, False, str(exc)))
+
+    def sensor():
+        cls = sources.cls("isaaclab/sensors/sensor_base.py", "SensorBase")
+        args = [a.arg for a in method(cls, "_update_buffers_impl").args.args]
+        if args[1:] != ["env_mask"]:
+            raise ValueError(f"requires Lab 3 env_mask API; got {args}")
+        for name in ("_initialize_impl", "_update_outdated_buffers", "_resolve_rigid_body_ancestor_expr", "update"):
+            method(cls, name)
+        args = [a.arg for a in method(cls, "reset").args.args]
+        if args != ["self", "env_ids", "env_mask"]:
+            raise ValueError(f"reset API drift: {args}")
+        text = sources.read("isaaclab/sensors/sensor_base.py")
+        for member in ("_timestamp_last_update", "_timestamp", "_num_envs", "get_clone_plan"):
+            if member not in text:
+                raise ValueError(f"missing {member}")
+
+    def imu():
+        cls = sources.cls("isaaclab/sensors/imu/base_imu_data.py", "BaseImuData")
+        for name in ("ang_vel_b", "lin_acc_b"):
+            method(cls, name)
+        cls = sources.cls("isaaclab/sensors/imu/imu_cfg.py", "OffsetCfg")
+        rot = next(n for n in cls.body if isinstance(n, ast.AnnAssign) and n.target.id == "rot")
+        if ast.literal_eval(rot.value) != (0., 0., 0., 1.):
+            raise ValueError("ImuCfg identity is not xyzw")
+
+    def views():
+        method(sources.cls("isaaclab/assets/rigid_object/base_rigid_object.py", "BaseRigidObject"), "root_view")
+        method(sources.cls("isaaclab_physx/physics/physx_manager.py", "PhysxManager"), "get_physics_sim_view")
+        text = sources.read("isaaclab_physx/sensors/imu/imu.py")
+        for name in ("create_rigid_body_view", "get_transforms", "get_gravity"):
+            if name not in text:
+                raise ValueError(f"PhysX Imu no longer uses {name}")
+
+    def config():
+        cls = sources.cls("isaaclab/sensors/sensor_base_cfg.py", "SensorBaseCfg")
+        names = {n.target.id for n in cls.body if isinstance(n, ast.AnnAssign)}
+        if not {"prim_path", "update_period", "debug_vis"}.issubset(names):
+            raise ValueError(f"SensorBaseCfg fields changed: {names}")
+        method(sources.cls("isaaclab/managers/observation_manager.py", "ObservationManager"), "reset")
+        text = sources.read("isaaclab/managers/manager_term_cfg.py")
+        if "history_length" not in text or "flatten_history_dim" not in text:
+            raise ValueError("observation history config unavailable")
+
+    check("SensorBase masks, lazy capture, reset and clone initialization", sensor)
+    check("lightweight Imu data and xyzw mount convention", imu)
+    check("RigidObject root_view and PhysX sensor view access", views)
+    check("sensor config and observation manager history", config)
+    return results
 
 
-def module_exports(tree):
-    out = set()
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            out.add(node.name)
-        elif isinstance(node, ast.Assign):
-            for t in node.targets:
-                if isinstance(t, ast.Name):
-                    out.add(t.id)
-        elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            for a in node.names:
-                out.add(a.asname or a.name.split(".")[0])
-    return out
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("sources", nargs="+")
+    args = parser.parse_args()
+    try:
+        sources = Sources(args.sources)
+        results = check_sources(sources)
+    except Exception as exc:
+        print(f"[FAIL] {exc}")
+        return 1
+    print("SOURCE INSPECTION ONLY — Isaac was not executed")
+    for name, ok, detail in results:
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}" + (f": {detail}" if detail else ""))
+    try:
+        digest = hashlib.sha256(sources.read("isaaclab/sensors/sensor_base.py").encode()).hexdigest()
+        print(f"SensorBase SHA256: {digest}")
+    except ValueError:
+        pass
+    return int(any(not ok for _, ok, _ in results))
 
 
-results = []
-
-
-def check(label, ok, detail=""):
-    results.append((label, ok, detail))
-    print("  [{0}] {1}{2}".format("OK " if ok else "FAIL", label,
-                                  (" -- " + detail) if detail else ""))
-
-
-print("wheel:", WHEEL.rsplit("/", 1)[-1])
-print()
-
-# --- A + B + D: SensorBase shape ---
-sb_path = find("isaaclab/sensors/sensor_base.py")
-check("sensor_base.py present in wheel", sb_path is not None, sb_path or "")
-sb = parse(sb_path)
-cls = class_def(sb, "SensorBase")
-check("class SensorBase found", cls is not None)
-
-m = method(cls, "_update_buffers_impl")
-check("_update_buffers_impl exists", m is not None)
-args = arg_names(m)
-check("2.x signature: 2nd arg is 'env_ids' (3.0 uses env_mask)",
-      len(args) >= 2 and args[1] == "env_ids", "args=" + repr(args))
-
-m = method(cls, "_initialize_impl")
-check("_initialize_impl exists (we call super() on it)", m is not None)
-
-m = method(cls, "_update_outdated_buffers")
-check("_update_outdated_buffers exists (lazy-eval contract)", m is not None)
-
-src = read(sb_path)
-check("data property documented as lazy on SensorBase",
-      "def data" in src)
-
-# --- C: SensorBaseCfg fields ---
-cfg_cls = class_def(sb, "SensorBaseCfg")
-if cfg_cls is None:
-    cfg_path = find("isaaclab/sensors/sensor_base_cfg.py")
-    cfg_cls = class_def(parse(cfg_path), "SensorBaseCfg") if cfg_path else None
-check("SensorBaseCfg found", cfg_cls is not None)
-cfg_fields = set()
-for node in cfg_cls.body:
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        cfg_fields.add(node.target.id)
-    elif isinstance(node, ast.Assign):
-        for t in node.targets:
-            if isinstance(t, ast.Name):
-                cfg_fields.add(t.id)
-for f in ("prim_path", "update_period", "debug_vis"):
-    check("SensorBaseCfg.%s exists" % f, f in cfg_fields, "fields=" + ", ".join(sorted(cfg_fields)) if f not in cfg_fields else "")
-
-# --- E: math utils ---
-mu_path = find("isaaclab/utils/math.py")
-mu = module_exports(parse(mu_path))
-check("isaaclab.utils.math.quat_apply exists", "quat_apply" in mu)
-
-# --- F: configclass ---
-u_init = find("isaaclab/utils/__init__.py")
-u = module_exports(parse(u_init))
-check("isaaclab.utils.configclass importable", "configclass" in u)
-
-# --- G: our exact import lines resolve ---
-IMPORTS = {
-    "isaaclab/sensors/__init__.py": ["SensorBase", "SensorBaseCfg"],
-    "isaaclab/envs/__init__.py": ["DirectRLEnv", "DirectRLEnvCfg"],
-    "isaaclab/scene/__init__.py": ["InteractiveSceneCfg"],
-    "isaaclab/sim/__init__.py": ["SimulationCfg"],
-}
-for mod, symbols in IMPORTS.items():
-    p = find(mod)
-    if p is None:
-        for s in symbols:
-            check("from %s import %s" % (mod, s), False, "module missing")
-        continue
-    exp = module_exports(parse(p))
-    src = read(p)
-    for s in symbols:
-        check("from %s import %s" % (mod.replace("/__init__.py", "").replace("/", "."), s),
-              s in exp or s in src)
-
-# --- H2: every isaaclab symbol scripts/verify_in_isaac.py touches ---
-VERIFY_SURFACE = {
-    "isaaclab/app/__init__.py": ["AppLauncher"],
-    "isaaclab/sim/__init__.py": ["SimulationContext", "SimulationCfg"],
-    "isaaclab/sim/spawners/from_files/__init__.py": ["GroundPlaneCfg"],
-    "isaaclab/sim/spawners/shapes/__init__.py": ["CuboidCfg"],
-    "isaaclab/sim/spawners/materials/__init__.py": ["RigidBodyMaterialCfg"],
-    "isaaclab/sim/schemas/__init__.py": ["RigidBodyPropertiesCfg", "MassPropertiesCfg",
-                                     "CollisionPropertiesCfg"],
-    "isaaclab/assets/__init__.py": ["RigidObjectCfg"],
-    "isaaclab/scene/__init__.py": ["InteractiveScene", "InteractiveSceneCfg"],
-}
-for mod, symbols in VERIFY_SURFACE.items():
-    p2 = find(mod)
-    if p2 is None:
-        for sym in symbols:
-            check("verify_in_isaac surface: %s in %s" % (sym, mod), False, "module missing")
-        continue
-    exp = module_exports(parse(p2))
-    src2 = read(p2)
-    for sym in symbols:
-        check("verify_in_isaac surface: %s.%s" %
-              (mod.replace("/__init__.py", "").replace("/", "."), sym),
-              sym in exp or sym in src2)
-
-# --- I: imu.py, the stated authoring reference ---
-imu_path = find("isaaclab/sensors/imu/imu.py")
-check("imu.py present (authoring reference)", imu_path is not None)
-imu_cls = class_def(parse(imu_path), "Imu")
-m = method(imu_cls, "_update_buffers_impl") if imu_cls else None
-check("Imu._update_buffers_impl(env_ids) matches pattern we copied",
-      m is not None and len(arg_names(m)) >= 2 and arg_names(m)[1] == "env_ids")
-
-# --- isaacsim.core.simulation_manager: not in this wheel (ships with Isaac Sim),
-# but verify isaaclab itself imports it the same way we do.
-hits = [n for n in names if n.endswith(".py") and
-        "from isaacsim.core.simulation_manager import SimulationManager" in read(n)]
-check("isaaclab 2.3.2 itself imports SimulationManager from the same path we use",
-      len(hits) > 0, "%d files, e.g. %s" % (len(hits), hits[0].split("isaaclab/")[-1] if hits else ""))
-
-print()
-fails = [r for r in results if not r[1]]
-print("%d/%d contract checks passed" % (len(results) - len(fails), len(results)))
-sys.exit(1 if fails else 0)
+if __name__ == "__main__":
+    raise SystemExit(main())
