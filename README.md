@@ -7,14 +7,15 @@
 ![Scentience robot olfaction demonstration](media/scentience_robot.gif)
 
 Chemical transport, instrument response, and navigation tools for robotic
-olfaction. Build scent-based tasks with Scentience sensors, Sensirion CO₂
-sensors, or calibrated electrochemical cells connected to an EmStat Pico.
-The NumPy core runs on a laptop; optional Torch and Warp backends support
-batched Isaac workflows.
+olfaction. Build scent-based tasks for robotics with Scentience sensors, 
+and popular third party sensors such as Sensirion, Sensortech SGX, PalmSens,
+Si-Ware, Hamamatsu, and more.
+To make this repository as accessible as possible, it contains a NumPy core 
+that runs on a laptop; optional Torch and Warp backends support
+conventional Isaac Sim and Isaac Lab workflows.
 
 Developed by Kordel France and Scentience, Inc. The Scentience models build on
-the research listed in [CITATION.cff](CITATION.cff). Calibration assumptions and
-manufacturer specifications are documented separately from software validation.
+the research listed in [CITATION.cff](CITATION.cff).
 
 ## Quick start
 
