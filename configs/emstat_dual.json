@@ -1,0 +1,36 @@
+{
+  "seed": 7,
+  "device_profile": "emstat_pico",
+  "stereo_baseline_m": 0.04,
+  "device_config": {
+    "channels": [
+      {
+        "electrode_count": 3,
+        "bias_v": 0.0,
+        "current_range_na": 2000.0,
+        "cell": {
+          "sensitivity_na_per_ppm": {"carbon_monoxide": 10.0},
+          "calibration_id": "ILLUSTRATIVE demo only; replace with cell calibration",
+          "tau_s": 2.0
+        }
+      },
+      {
+        "electrode_count": 2,
+        "bias_v": 0.0,
+        "current_range_na": 2000.0,
+        "cell": {
+          "sensitivity_na_per_ppm": {"hydrogen_sulfide": 20.0},
+          "calibration_id": "ILLUSTRATIVE demo only; replace with cell calibration",
+          "tau_s": 3.0
+        }
+      }
+    ]
+  },
+  "plume": {
+    "emitters": [
+      {"type": "point", "position": [0.0, 0.0, 1.0], "species": "carbon_monoxide", "ppm_center_initial": 50.0},
+      {"type": "point", "position": [0.0, 0.2, 1.0], "species": "hydrogen_sulfide", "ppm_center_initial": 20.0}
+    ],
+    "max_filaments": 4000
+  }
+}

@@ -28,13 +28,42 @@ from __future__ import annotations
 
 import math
 from collections import deque
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from numbers import Integral, Real
 
 import numpy as np
 
 
+def finite_value(name: str, value: float, *, positive=False, nonnegative=False) -> None:
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real) or not math.isfinite(value):
+        raise ValueError(f"{name} must be a finite real number")
+    if (positive and value <= 0) or (nonnegative and value < 0):
+        raise ValueError(f"{name} must be {'positive' if positive else 'nonnegative'}")
+
+
+def validate_concentrations(conc_ppm: dict[str, float]) -> None:
+    if not isinstance(conc_ppm, Mapping):
+        raise ValueError("conc_ppm must be a species-to-ppm mapping")
+    for species, value in conc_ppm.items():
+        if not isinstance(species, str) or not species:
+            raise ValueError("species names must be nonempty strings")
+        finite_value(f"concentration[{species}]", value, nonnegative=True)
+
+
+def validate_environment(temp_c=20.0, rh_pct=50.0, flow_mps=0.0, heater_level=1.0):
+    for name, value in (("temp_c", temp_c), ("rh_pct", rh_pct),
+                        ("flow_mps", flow_mps), ("heater_level", heater_level)):
+        finite_value(name, value)
+    if temp_c <= -243.12:
+        raise ValueError("temp_c is outside the Magnus humidity model domain (> -243.12 C)")
+    if not 0 <= rh_pct <= 100 or flow_mps < 0 or heater_level <= 0:
+        raise ValueError("require RH in [0, 100], flow >= 0 and heater_level > 0")
+
+
 def absolute_humidity(temp_c: float, rh_pct: float) -> float:
     """g/m^3 from degrees C and % RH (Magnus). MOX responds to AH, not RH."""
+    validate_environment(temp_c, rh_pct)
     es = 6.112 * math.exp(17.62 * temp_c / (243.12 + temp_c))
     return 216.7 * (rh_pct / 100.0) * es / (273.15 + temp_c)
 
@@ -81,17 +110,71 @@ class MoxChannelConfig:
     v_ref: float = 3.3
     adc_bits: int = 12
 
+    # Sign of the resistance change on exposure: -1 reducing, +1 oxidizing.
+    # Infer from beta for single-polarity calibrations; mixed signs require an
+    # explicit choice because one lag state cannot resolve opposing kinetics.
+    response_polarity: int | None = None
+
+    def __post_init__(self):
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("MOX name must be a nonempty string")
+        for name in ("r0_nominal", "rs_r0_clean_air", "tau_rise_s", "tau_fall_s",
+                     "tau_flow_ref_mps", "r_load", "v_supply", "v_ref"):
+            finite_value(name, getattr(self, name), positive=True)
+        for name in ("dead_volume_delay_s", "tau_flow_exponent", "activation_energy_ev",
+                     "drift_sigma_per_sqrt_s", "white_noise_frac", "flicker_noise_frac"):
+            finite_value(name, getattr(self, name), nonnegative=True)
+        for name in ("humidity_coeff", "humidity_sensitivity_coeff"):
+            finite_value(name, getattr(self, name))
+        if not isinstance(self.r0_range, (tuple, list)) or len(self.r0_range) != 2:
+            raise ValueError("r0_range must contain two bounds")
+        for bound in self.r0_range:
+            finite_value("r0_range", bound, positive=True)
+        if self.r0_range[0] > self.r0_range[1]:
+            raise ValueError("r0_range must be ordered")
+        if isinstance(self.adc_bits, bool) or not isinstance(self.adc_bits, Integral) or not 1 <= self.adc_bits <= 32:
+            raise ValueError("adc_bits must be an integer in [1, 32]")
+        if not isinstance(self.sensitivity, dict):
+            raise ValueError("sensitivity must be a species-to-(A, beta) dictionary")
+        for gas, pair in self.sensitivity.items():
+            if not isinstance(gas, str) or not gas or not isinstance(pair, (tuple, list)) or len(pair) != 2:
+                raise ValueError("sensitivity requires nonempty species names and (A, beta) pairs")
+            finite_value(f"{gas}.A", pair[0], positive=True)
+            finite_value(f"{gas}.beta", pair[1])
+            if pair[1] == 0:
+                raise ValueError("beta must be nonzero")
+        if self.response_polarity is not None and (
+            isinstance(self.response_polarity, bool) or self.response_polarity not in (-1, 1)
+        ):
+            raise ValueError("response_polarity must be -1 or +1")
+        if len({np.sign(beta) for _, beta in self.sensitivity.values()}) > 1 and self.response_polarity is None:
+            raise ValueError("mixed reducing/oxidizing sensitivity requires response_polarity")
+        self.r0_range = tuple(self.r0_range)
+        self.sensitivity = {gas: tuple(pair) for gas, pair in self.sensitivity.items()}
+
+    @property
+    def polarity(self) -> int:
+        if self.response_polarity is not None:
+            return self.response_polarity
+        return 1 if self.sensitivity and all(b < 0 for _, b in self.sensitivity.values()) else -1
+
 
 class MoxChannel:
     def __init__(self, cfg: MoxChannelConfig, rng: np.random.Generator, randomize: bool = True):
+        cfg.__post_init__()
+        if not isinstance(randomize, bool):
+            raise ValueError("randomize must be boolean")
         self.cfg = cfg
         self.rng = rng
         self._randomize = randomize
         self.reset()
 
-    def reset(self) -> None:
+    def reset(self, randomize: bool | None = None) -> None:
+        if randomize is not None and not isinstance(randomize, bool):
+            raise ValueError("randomize must be boolean or None")
         c = self.cfg
-        if self._randomize:
+        resample = self._randomize if randomize is None else randomize
+        if resample:
             # R0 log-uniform over the datasheet spread. Sampling a single
             # nominal value produces unrealistically consistent virtual units
             # and is the fastest way to train a policy that cannot transfer.
@@ -102,8 +185,7 @@ class MoxChannel:
         self.ln_drift = 0.0
         self._flicker = np.zeros(4)
         self._y = c.rs_r0_clean_air  # filtered Rs/R0
-        self._delay: deque[float] = deque()
-        self._delay_t = 0.0
+        self._delay: deque[tuple] = deque()
         self.t = 0.0
 
     # ------------------------------------------------------------------ model
@@ -143,25 +225,37 @@ class MoxChannel:
         flow_mps: float = 0.0,
         heater_level: float = 1.0,
     ) -> dict[str, float]:
+        finite_value("dt", dt, positive=True)
+        validate_concentrations(conc_ppm)
+        validate_environment(temp_c, rh_pct, flow_mps, heater_level)
         c = self.cfg
         target = self._steady_state(conc_ppm, temp_c, rh_pct)
+        finite_value("MOX target", target, positive=True)
 
         # --- asymmetric first-order lag, flow- and heater-corrected ----------
-        tau = c.tau_rise_s if target < self._y else c.tau_fall_s
+        tau = c.tau_rise_s if c.polarity * (target - self._y) > 0 else c.tau_fall_s
         if flow_mps > 0.0 and c.tau_flow_exponent:
             tau *= (max(flow_mps, 1e-3) / c.tau_flow_ref_mps) ** (-c.tau_flow_exponent)
         tau /= max(heater_level, 1e-3)  # hotter plate = faster surface kinetics
-        alpha = 1.0 - math.exp(-dt / max(tau, 1e-6))  # exact, stable for any dt
+        tau = max(tau, 1e-6)
+        alpha = -math.expm1(-dt / tau)  # exact, stable for any dt
+        y_start = self._y
         self._y += alpha * (target - self._y)
 
         # --- transport delay (inlet + housing dead volume) -------------------
         y = self._y
         if c.dead_volume_delay_s > 0.0:
-            self._delay.append(self._y)
-            n = max(1, int(round(c.dead_volume_delay_s / dt)))
-            while len(self._delay) > n:
+            # Delay the continuous, piecewise exponential lag trajectory.
+            # Each input is held on [t, t+dt); pre-reset history is clean air.
+            self._delay.append((self.t, self.t + dt, y_start, target, tau))
+            query = self.t + dt - c.dead_volume_delay_s
+            while len(self._delay) > 1 and self._delay[0][1] <= query:
                 self._delay.popleft()
-            y = self._delay[0]
+            if query <= 0:
+                y = c.rs_r0_clean_air
+            else:
+                start, _, initial, old_target, old_tau = self._delay[0]
+                y = initial - math.expm1(-(query - start) / old_tau) * (old_target - initial)
 
         # --- baseline drift: random walk on ln R0 ----------------------------
         self.ln_drift += c.drift_sigma_per_sqrt_s * math.sqrt(dt) * self.rng.standard_normal()
@@ -192,6 +286,9 @@ class MoxChannel:
             "rs_true": rs,
             "rs_measured": rs_hat,
             "ratio_measured": rs_hat / r0_t,
+            # Fixed episode calibration exposes drift to a real observer.
+            # Keep the legacy, instantaneous-R0 feature above unchanged.
+            "ratio_baseline": rs_hat / self.r0,
             "counts": counts,
             "volts": v_q,
             "r0_current": r0_t,

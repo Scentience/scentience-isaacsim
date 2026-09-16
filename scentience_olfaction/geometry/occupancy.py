@@ -11,8 +11,8 @@ principles -- no third-party dispersion code is used):
                            FREE; anything unreached stays non-free.  The seed
                            point is REQUIRED -- inferring it guesses wrong on
                            any scene with enclosed volumes.
-  3. queries               line_of_sight (DDA ray march) for concentration
-                           sampling; collide_and_slide for filament stepping.
+  3. queries               line_of_sight for concentration sampling;
+                           swept voxel collision and slide for filament stepping.
 
 Cell states: FREE=0, OBSTACLE=1, OUTLET=2, OUT_OF_BOUNDS handled implicitly.
 Filaments entering OUTLET cells are culled by the transport.
@@ -145,10 +145,12 @@ class OccupancyGrid:
 
     # ---------------------------------------------------------------- queries
     def line_of_sight(self, a: np.ndarray, b: np.ndarray) -> bool:
-        """Ray march at half-cell steps; blocked iff any OBSTACLE cell is hit.
+        """Check endpoints, then march; blocked if an OBSTACLE cell is hit.
         Half-cell stepping can, in principle, tunnel through an exact corner;
         acceptable for concentration gating, do not reuse for physics."""
         a, b = np.asarray(a, np.float64), np.asarray(b, np.float64)
+        if np.any(self.state_at(np.stack((a, b))) == OBSTACLE):
+            return False
         d = b - a
         dist = float(np.linalg.norm(d))
         if dist < 1e-12:
@@ -167,37 +169,127 @@ class OccupancyGrid:
 
     def collide_and_slide(self, p_old: np.ndarray, p_new: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
-        Axis-decomposed slide response for filaments (vectorised).
+        Swept voxel collision with sliding, batched over (N, 3) points.
 
-        For each mover whose destination cell is OBSTACLE, accept each axis
-        component independently from the old position; components that would
-        enter an obstacle are cancelled. This slides along walls rather than
-        sticking to them. It is an approximation of the recursive
-        project-and-slide response (documented in CHEMICAL_MODEL.md); exact
-        for axis-aligned geometry, approximate near corners.
+        Traverse every crossed cell, stop just before the first solid face,
+        and sweep the remaining tangential displacement. Simultaneous edge /
+        corner crossings conservatively check all touched cells. Each contact
+        removes at least one displacement axis, so at most three sweeps suffice.
 
-        Returns (positions, outlet_mask). OUT-of-domain or OUTLET destinations
-        report True in outlet_mask (caller culls those filaments).
+        Returns (positions, outlet_mask). The FIRST outlet or domain exit on
+        the actual swept path reports True, even if the requested endpoint is
+        free. A wall before an outlet blocks it. Starts in solid cells are
+        invalid; starts in outlets are immediately reported for culling.
         """
-        p_old = np.atleast_2d(p_old).copy()
-        p_new = np.atleast_2d(p_new).copy()
-        st = self.state_at(p_new)
-        outlet = st == OUTLET
-        hit = st == OBSTACLE
-        if hit.any():
-            idx = np.flatnonzero(hit)
-            for ax in range(3):
-                trial = p_old[idx].copy()
-                trial[:, ax] = p_new[idx, ax]
-                blocked = self.state_at(trial) == OBSTACLE
-                # cancel the axis move where blocked
-                p_new[idx[blocked], ax] = p_old[idx[blocked], ax]
-            # a mover fully boxed in stays put (all axes cancelled) -- fine.
-            st2 = self.state_at(p_new[idx])
-            still = st2 == OBSTACLE
-            p_new[idx[still]] = p_old[idx[still]]
-            outlet[idx] |= st2 == OUTLET
-        return p_new, outlet
+        start = np.atleast_2d(np.asarray(p_old, dtype=np.float64))
+        target = np.atleast_2d(np.asarray(p_new, dtype=np.float64)).copy()
+        if (start.ndim != 2 or start.shape[1] != 3 or start.shape != target.shape or
+                not np.isfinite(start).all() or not np.isfinite(target).all()):
+            raise ValueError("movement endpoints must be finite arrays with matching shape (N, 3)")
+        state = self.state_at(start)
+        if np.any(state == OBSTACLE):
+            raise ValueError("movement cannot start inside an obstacle cell")
+        out = start.copy()
+        outlet = state == OUTLET
+        active = np.flatnonzero(~outlet)
+        for _ in range(3):
+            if not active.size:
+                break
+            position, blocked, escaped = self._sweep(out[active], target[active])
+            out[active] = position
+            outlet[active] = escaped
+            # Keep the original tangential destination, but remove every
+            # blocked normal component before sweeping the slide itself.
+            target[active] = np.where(blocked, position, target[active])
+            active = active[blocked.any(axis=1) & ~escaped]
+        return out, outlet
+
+    def _sweep(self, start: np.ndarray, target: np.ndarray):
+        """First contact for each segment; vectorized voxel DDA, no point sampling."""
+        cell = self.world_to_cell(start)
+        end_cell = self.world_to_cell(target)
+        position = target.copy()
+        blocked = np.zeros(start.shape, dtype=bool)
+        outlet = np.zeros(start.shape[0], dtype=bool)
+        # A voxel is convex: segments contained in one free voxel need no DDA.
+        active = np.flatnonzero(np.any(cell != end_cell, axis=1))
+        if not active.size:
+            return position, blocked, outlet
+
+        delta = target - start
+        direction = np.sign(delta).astype(np.int64)
+        boundary = self.origin + (cell + (direction > 0)) * self.cell_size
+        next_t = np.full(start.shape, np.inf)
+        stride = np.full(start.shape, np.inf)
+        np.divide(boundary - start, delta, out=next_t, where=delta != 0)
+        np.divide(self.cell_size, np.abs(delta), out=stride, where=delta != 0)
+        next_t = np.maximum(next_t, 0.0)
+        eps = np.finfo(np.float64).eps
+
+        while active.size:
+            t = np.min(next_t[active], axis=1)
+            # Include endpoint contacts. A handful of ulps covers roundoff in
+            # boundary times and conservatively merges near-exact corner ties.
+            tol = 16 * eps * np.maximum(1.0, np.abs(t))
+            visiting = t <= 1.0 + tol
+            active, t, tol = active[visiting], t[visiting], tol[visiting]
+            if not active.size:
+                break
+            crosses = next_t[active] <= t[:, None] + tol[:, None]
+            normals = np.zeros(crosses.shape, dtype=bool)
+            exits = np.zeros(active.size, dtype=bool)
+
+            # Supercover of ties: for an XY edge inspect X, Y AND XY; for
+            # an XYZ vertex inspect all seven neighbours. Advancing only the
+            # diagonal cell permits leaks between edge-touching solid voxels.
+            for bits in range(1, 8):
+                axes = (np.array([1, 2, 4]) & bits) != 0
+                rows = np.flatnonzero(np.all(crosses[:, axes], axis=1))
+                if not rows.size:
+                    continue
+                ids = active[rows]
+                candidate = cell[ids] + direction[ids] * axes
+                inside = self.in_bounds(candidate)
+                state = np.full(rows.size, OUTLET, dtype=np.uint8)
+                cc = candidate[inside]
+                state[inside] = self.grid[cc[:, 0], cc[:, 1], cc[:, 2]]
+                # A blocked X face already prevents entering an XY/XYZ
+                # neighbour behind it; do not spuriously cancel Y/Z sliding
+                # along a flat wall merely because grid planes coincide.
+                new_face = (state == OBSTACLE) & ~np.any(normals[rows] & axes, axis=1)
+                normals[rows] |= new_face[:, None] & axes
+                exits[rows] |= state == OUTLET
+
+            hit = normals.any(axis=1)
+            contact = hit | exits
+            if contact.any():
+                ids = active[contact]
+                at = start[ids] + np.minimum(t[contact], 1.0)[:, None] * delta[ids]
+                # Solid faces win simultaneous solid/outlet contacts; a later
+                # tangential sweep can still enter an unobstructed outlet.
+                outlet[ids] = exits[contact] & ~hit[contact]
+                blocked[ids] = normals[contact]
+                faces = self.origin + (cell[ids] + (direction[ids] > 0)) * self.cell_size
+                # Stay representably on the free side even with translated
+                # grids, where nextafter alone can round back into the wall
+                # during (position-origin)/cell_size conversion.
+                skin = 16 * eps * np.maximum(
+                    self.cell_size, np.maximum(np.abs(faces), np.abs(self.origin)))
+                safe = faces - direction[ids] * skin
+                safe = np.where(direction[ids] > 0, np.maximum(start[ids], safe),
+                                np.minimum(start[ids], safe))
+                position[ids] = np.where(normals[contact], safe, at)
+                # A tangential coordinate can already enter an outlet at the
+                # same instant another coordinate hits a wall. Do not start a
+                # second sweep inside that outlet and pass through it unseen.
+                outlet[ids] |= self.state_at(position[ids]) == OUTLET
+
+            advancing = ~contact
+            ids = active[advancing]
+            cell[ids] += direction[ids] * crosses[advancing]
+            next_t[ids] += np.where(crosses[advancing], stride[ids], 0.0)
+            active = ids[np.any(cell[ids] != end_cell[ids], axis=1)]
+        return position, blocked, outlet
 
 
 # ----------------------------------------------------------------------------

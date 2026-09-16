@@ -1,29 +1,9 @@
-"""
-Evidence provenance for every physical coefficient in the stack.
+"""Evidence records for physical coefficients and scoped scientific claims.
 
-WHY THIS EXISTS
----------------
-A simulator becomes a standard by being trusted, and trust is destroyed exactly
-once: the first time someone discovers a number was invented and presented as
-measured.  The incumbent, GADEN, ships MOX coefficients where four of seven
-gases silently reuse methane's constants and a PID "correction factor" that is
-actually an ionisation energy.  Nothing in the code or the output says so.  You
-have to read the source to find out.
-
-This module makes that impossible here.  Every coefficient carries its own
-evidence level, source, and measurement conditions.  Any result can produce a
-provenance report.  A run whose conclusions depend on synthesised numbers says
-so, in the output, without anyone having to ask.
-
-This turns incomplete calibration data from a liability into a differentiator:
-you can ship synthesised coefficients for gases you have not yet measured,
-label them precisely, and replace them incrementally as real data arrives --
-with every downstream user automatically seeing which is which.
-
-It is also the executable form of the argument in "Olfaction Standardization is
-Essential for the Advancement of Embodied AI" (arXiv:2506.00398).  A standard
-that specifies evidence levels is a stronger claim than one that specifies only
-file formats.
+Each registered value carries its source, units, measurement conditions and
+an evidence category. Registration is explicit: the registry does not infer
+provenance for every configurable parameter. Measurements apply to the named
+hardware and conditions; transferring them to another device is an assumption.
 """
 
 from __future__ import annotations
@@ -56,7 +36,7 @@ class Evidence(IntEnum):
     across units, not a property of the specific part in your hand."""
 
     MEASURED = 4
-    """Measured on Scentience hardware under stated conditions. Record how many
+    """Measured on the named hardware under stated conditions. Record how many
     units, over what range, at what T/RH. One unit is not a spread."""
 
 
@@ -197,7 +177,7 @@ def synthesized_from(donor_gas: str, target_gas: str, basis: str) -> str:
     """
     Canonical source string for a coefficient transferred between analytes.
 
-    Forces the donor to be named.  GADEN's silent methane-for-everything
-    substitution is invisible precisely because nothing records the donor.
+    Records the donor so transferred coefficients remain distinguishable
+    from measurements of the target analyte.
     """
     return f"SYNTHESIZED: transferred from {donor_gas} to {target_gas}; basis: {basis}"

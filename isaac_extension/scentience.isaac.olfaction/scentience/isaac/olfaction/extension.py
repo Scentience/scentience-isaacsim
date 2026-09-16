@@ -1,16 +1,17 @@
-"""
-Kit extension scaffold. Lifecycle only in v0.1: the supported integration is
-Isaac Lab (scentience_isaaclab/); this exists so GUI users can enable the
-extension and find the docs. Transport equations do NOT belong in this file.
-UNVALIDATED in a live Isaac install -- see docs/ISAAC_COMPATIBILITY.md.
-"""
+"""Kit lifecycle entry point; simulation remains configured through Python."""
 import carb
 import omni.ext
 
 
 class ScentienceOlfactionExtension(omni.ext.IExt):
     def on_startup(self, ext_id: str) -> None:
-        carb.log_info("[scentience.isaac.olfaction] startup (v0.1 scaffold)")
+        try:
+            from scentience_olfaction import __version__
+        except ImportError as exc:
+            raise RuntimeError("Install scentience-olfaction in the Isaac interpreter before "
+                               "enabling this extension: python -m pip install -e .") from exc
+        carb.log_info(f"[scentience.isaac.olfaction] core {__version__} available; "
+                      "configure simulations with OlfactionWorld or OlfactorySensorCfg")
 
     def on_shutdown(self) -> None:
         carb.log_info("[scentience.isaac.olfaction] shutdown")
